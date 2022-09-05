@@ -5,7 +5,8 @@
 int main(int argc, char* argv[]) {
   int p[2] = {0, 0};
   pipe(p);
-  if (fork() == 0) {
+  int pid = fork();
+  if (pid != 0) {
     // parent: recv
     close(p[1]);
     char data[32];
@@ -13,6 +14,7 @@ int main(int argc, char* argv[]) {
     read(p[0], &data_len, sizeof(data_len));
     read(p[0], data, data_len);
     close(p[0]);
+    wait(&pid);
     printf("parent: recv `%s'\n", data);
   } else {
     close(p[0]);
