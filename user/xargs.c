@@ -1,6 +1,7 @@
 #include "kernel/stat.h"
 #include "kernel/types.h"
 #include "user/user.h"
+#include "kernel/param.h"
 
 int main(int argc, char *argv[]) {
   char buf[512];
@@ -10,7 +11,7 @@ int main(int argc, char *argv[]) {
   }
   while (gets(buf, sizeof(buf))) {
     int n = 1;
-    char **args = (char **)malloc(sizeof(char *) * 32);
+    char **args = (char **)malloc(sizeof(char *) * MAXARG);
     char *last_p = buf;
     int in_word = 0;
     for (int i = 2; i < argc; i++) {
