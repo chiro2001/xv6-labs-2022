@@ -185,3 +185,14 @@ void            virtio_disk_intr(void);
 
 // number of elements in fixed-size array
 #define NELEM(x) (sizeof(x)/sizeof((x)[0]))
+
+// sys trace
+struct sys_trace_info {
+  struct proc* p;
+  int mask;
+};
+extern struct sys_trace_info sys_trace_info;
+extern int sys_trace_child_pids[];
+extern int sys_trace_child_pids_tail;
+
+extern const char syscall_names[][10];

@@ -351,6 +351,12 @@ exit(int status)
   end_op();
   p->cwd = 0;
 
+  // if we are tracing syscall, cancel this trace action
+  if (sys_trace_info.p && p->pid == sys_trace_info.p->pid) {
+    sys_trace_info.p = 0;
+    sys_trace_child_pids_tail = 0;
+  }
+
   // we might re-parent a child to init. we can't be precise about
   // waking up init, since we can't acquire its lock once we've
   // acquired any other proc lock. so wake up init whether that's

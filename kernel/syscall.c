@@ -101,13 +101,54 @@ static uint64 (*syscalls[])(void) = {
     [SYS_trace] sys_trace,
 };
 
+const char syscall_names[][10] = {
+  "",
+  "fork",
+  "exit",
+  "wait",
+  "pipe",
+  "read",
+  "kill",
+  "exec",
+  "fstat",
+  "chdir",
+  "dup",
+  "getpid",
+  "sbrk",
+  "sleep",
+  "uptime",
+  "open",
+  "write",
+  "mknod",
+  "unlink",
+  "link",
+  "mkdir",
+  "close",
+  "trace"
+};
+
 void syscall(void) {
   int num;
   struct proc *p = myproc();
 
+  int will_trace = 0;
+  if (sys_trace_info.p) {
+    int tail = 0;
+    while (tail != sys_trace_child_pids_tail) {
+      if (sys_trace_child_pids[tail] == sys_trace_info.p->pid) {
+        will_trace = 1;
+        break;
+      }
+      tail++;
+    }
+  }
+
   num = p->trapframe->a7;
   if (num > 0 && num < NELEM(syscalls) && syscalls[num]) {
     p->trapframe->a0 = syscalls[num]();
+    if (will_trace && ((1 << num) & sys_trace_info.mask)) {
+      printf("%d: syscall %s -> %d\n", p->pid, syscall_names[num], p->trapframe->a0);
+    }
   } else {
     printf("%d %s: unknown sys call %d\n", p->pid, p->name, num);
     p->trapframe->a0 = -1;
