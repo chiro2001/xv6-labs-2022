@@ -91,7 +91,8 @@ uint64 sys_trace(void) {
   sys_trace_info.p = myproc();
   argint(0, &sys_trace_info.mask);
   // printf("pid %d tracing %d...\n", sys_trace_info.p->pid, sys_trace_info.mask);
-  printf("%d: syscall %s -> %d\n", sys_trace_info.p->pid, syscall_names[SYS_trace], sys_trace_info.p->trapframe->a0);
+  if (SYS_trace & sys_trace_info.mask)
+    printf("%d: sys_%s(%d) -> %d\n", sys_trace_info.p->pid, syscall_names[SYS_trace], sys_trace_info.p->trapframe->a0, 0);
   sys_trace_child_pids[0] = sys_trace_info.p->pid;
   sys_trace_child_pids_tail = 1;
   return 0;

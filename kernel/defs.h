@@ -185,6 +185,7 @@ int             copyout(pagetable_t, uint64, char *, uint64);
 int             copyin(pagetable_t, char *, uint64, uint64);
 int             copyinstr(pagetable_t, char *, uint64, uint64);
 int             test_pagetable();
+void            vmprint(pagetable_t);
 
 // plic.c
 void            plicinit(void);
@@ -242,10 +243,10 @@ extern int sys_trace_child_pids_tail;
 
 extern const char syscall_names[][10];
 
-#ifndef DEBUG
-#define DEBUG 1
-#endif
+// #ifndef DEBUG
+// #define DEBUG 1
+// #endif
 
-#ifndef CONFIG_PRINT_LOG
-#define CONFIG_PRINT_LOG 1
-#endif
+// #ifndef CONFIG_PRINT_LOG
+// #define CONFIG_PRINT_LOG 1
+// #endif
