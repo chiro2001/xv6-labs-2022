@@ -382,21 +382,22 @@ int test_pagetable() {
   return satp != gsatp;
 }
 
+#define PTE_VALID(pte) if (!(pte & PTE_V)) continue;
+
 void vmprint(pagetable_t pagetable) {
-  pte_t pte;
   printf("page table %p\n", pagetable);
   for (uint64 vppn0 = 0; vppn0 < 256; vppn0++) {
-    pte = pagetable[vppn0];
-    if (!(pte & PTE_V && (pte & (PTE_R | PTE_W | PTE_X)) == 0)) continue;
-    printf("..%d: pte %p pa %p\n", vppn0, pte, PTE2PA(pte));
+    pte_t pte0 = pagetable[vppn0];
+    PTE_VALID(pte0)
+    printf("||%d: pte %p pa %p\n", vppn0, pte0, PTE2PA(pte0));
     for (uint64 vppn1 = 0; vppn1 < 512; vppn1++) {
-      if (!(pte & PTE_V && (pte & (PTE_R | PTE_W | PTE_X)) == 0)) continue;
-      pte = pagetable[vppn1];
-      printf(".. ..%d: pte %p pa %p\n", vppn1, pte, PTE2PA(pte));
+      pte_t pte1 = ((pagetable_t)(PTE2PA(pte0)))[vppn1];
+      PTE_VALID(pte1)
+      printf("|| ||%d: pte %p pa %p\n", vppn1, pte1, PTE2PA(pte1));
       for (uint64 vppn2 = 0; vppn2 < 512; vppn2++) {
-        if (!(pte & PTE_V && (pte & (PTE_R | PTE_W | PTE_X)) == 0)) continue;
-        pte = pagetable[vppn2];
-        printf(".. .. ..%d: pte %p pa %p\n", vppn2, pte, PTE2PA(pte));
+        pte_t pte2 = ((pagetable_t)(PTE2PA(pte1)))[vppn2];
+        PTE_VALID(pte2)
+        printf("|| || ||%d: pte %p pa %p\n", vppn2, pte2, PTE2PA(pte2));
       }
     }
   }
