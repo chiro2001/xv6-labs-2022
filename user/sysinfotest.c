@@ -27,7 +27,7 @@ int countfree() {
   }
   sinfo(&info);
   if (info.freemem != 0) {
-    printf("FAIL: there is no free mem, but sysinfo.freemem=%d\n",
+    printf("FAIL: there is no free mem, but sysinfo.freemem=%x\n",
            info.freemem);
     exit(1);
   }
@@ -76,7 +76,7 @@ void testcall() {
   struct sysinfo info;
 
   if (sysinfo(&info) < 0) {
-    printf("FAIL: sysinfo failed\n");
+    printf("FAIL: sysinfo failed %s:%d\n", __FILE__, __LINE__);
     exit(1);
   }
 

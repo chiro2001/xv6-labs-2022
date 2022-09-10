@@ -48,13 +48,14 @@ static int fdalloc(struct file *f) {
 int fdfree(void) {
   int fd;
   struct proc *p = myproc();
+  int n = 0;
 
   for (fd = 0; fd < NOFILE; fd++) {
     if (p->ofile[fd] == 0) {
-      return NOFILE - fd - 1;
+      n++;
     }
   }
-  return 0;
+  return n;
 }
 
 uint64 sys_dup(void) {

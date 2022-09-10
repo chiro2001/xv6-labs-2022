@@ -26,6 +26,7 @@ struct {
 void kinit() {
   initlock(&kmem.lock, "kmem");
   freerange(end, (void *)PHYSTOP);
+  printf("KMEM: [%p - %p], total %x PAGES, PGSIZE %x\n", end, PHYSTOP, ((uint64)PHYSTOP - (uint64)end) / PGSIZE, PGSIZE);
 }
 
 void freerange(void *pa_start, void *pa_end) {
@@ -72,5 +73,18 @@ void *kalloc(void) {
 
 // Get how many pages have been allocated
 uint32 kpageused(void) {
-  return ((uint64)kmem.freelist - (uint64)end) / PGSIZE;
+  return ((PHYSTOP - (uint64)end) / PGSIZE) - kpagefree();
+}
+
+// Get how many free pages
+uint32 kpagefree(void) {
+  int n = 0;
+  struct run *r = kmem.freelist;
+  acquire(&kmem.lock);
+  while (r) {
+    n++;
+    r = r->next;
+  }
+  release(&kmem.lock);
+  return n;
 }

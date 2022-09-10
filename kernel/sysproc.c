@@ -8,6 +8,7 @@
 #include "proc.h"
 #include "syscall.h"
 #include "sysinfo.h"
+#include "debug.h"
 
 uint64 sys_exit(void) {
   int n;
@@ -109,11 +110,23 @@ uint64 sys_sysinfo(void) {
   struct sysinfo *d;
   struct sysinfo st;
   if (argaddr(0, (uint64*)&d) < 0) return -1;
-  printf("sysinfo with addr: %x\n", d);
-  st.freemem = kpageused() * PGSIZE;
+  // printf("\tsysinfo with addr: %p\n", d);
+  // check bad address
+  int is_bad_addr = 0;
+  uint64 tmp;
+  for (uint8 i = 0; i < sizeof(struct sysinfo) / sizeof(uint64); i++) {
+    uint64 addr = (uint64)d + sizeof(uint64) * i;
+    if (fetchaddr(addr, &tmp) < 0) {
+      is_bad_addr = 1;
+      // printf("\tbad addr: %p\n", addr);
+      break;
+    }
+  }
+  if (is_bad_addr) return -1;
+  st.freemem = kpagefree() * PGSIZE;
   st.nproc = procn();
   st.freefd = fdfree();
-  printf("sysinfo { freemem=%d, nproc=%d, freefd=%d }\n", st.freemem, st.nproc, st.freefd);
+  Dbg("sysinfo { freemem=%x, nproc=%d, freefd=%d }", st.freemem, st.nproc, st.freefd);
   copyout(p->pagetable, (uint64)d, (char*)&st, sizeof(st));
   return 0;
 }

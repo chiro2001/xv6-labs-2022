@@ -64,6 +64,7 @@ void*           kalloc(void);
 void            kfree(void *);
 void            kinit(void);
 uint32          kpageused(void);
+uint32          kpagefree(void);
 
 // log.c
 void            initlog(int, struct superblock*);
@@ -201,3 +202,11 @@ extern int sys_trace_child_pids[];
 extern int sys_trace_child_pids_tail;
 
 extern const char syscall_names[][10];
+
+#ifndef DEBUG
+#define DEBUG 1
+#endif
+
+#ifndef CONFIG_PRINT_LOG
+#define CONFIG_PRINT_LOG 1
+#endif
