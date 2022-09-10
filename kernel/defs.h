@@ -67,6 +67,8 @@ void            ramdiskrw(struct buf*);
 void*           kalloc(void);
 void            kfree(void *);
 void            kinit(void);
+uint32          kpageused(void);
+uint32          kpagefree(void);
 
 // log.c
 void            initlog(int, struct superblock*);
@@ -108,6 +110,10 @@ void            yield(void);
 int             either_copyout(int user_dst, uint64 dst, void *src, uint64 len);
 int             either_copyin(void *dst, int user_src, uint64 src, uint64 len);
 void            procdump(void);
+int             procn(void);
+
+// sysfile.c
+int             fdfree(void);
 
 // swtch.S
 void            swtch(struct context*, struct context*);
@@ -223,4 +229,23 @@ void            sockclose(struct sock *);
 int             sockread(struct sock *, uint64, int);
 int             sockwrite(struct sock *, uint64, int);
 void            sockrecvudp(struct mbuf*, uint32, uint16, uint16);
+#endif
+
+// sys trace
+struct sys_trace_info {
+  struct proc* p;
+  int mask;
+};
+extern struct sys_trace_info sys_trace_info;
+extern int sys_trace_child_pids[];
+extern int sys_trace_child_pids_tail;
+
+extern const char syscall_names[][10];
+
+#ifndef DEBUG
+#define DEBUG 1
+#endif
+
+#ifndef CONFIG_PRINT_LOG
+#define CONFIG_PRINT_LOG 1
 #endif
