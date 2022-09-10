@@ -103,3 +103,7 @@ uint64 sys_fork(void) {
   }
   return pid_child;
 }
+
+uint64 sys_sysinfo(void) {
+  return 0;
+}

@@ -156,6 +156,7 @@ UPROGS=\
 	$U/_test\
 	$U/_xargs\
 	$U/_trace\
+	$U/_sysinfotest\
 
 
 ifeq ($(LAB),trap)
