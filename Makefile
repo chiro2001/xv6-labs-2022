@@ -155,6 +155,7 @@ UPROGS=\
 	$U/_find\
 	$U/_test\
 	$U/_xargs\
+	$U/_trace\
 
 
 ifeq ($(LAB),trap)
