@@ -7,6 +7,7 @@
 #include "spinlock.h"
 #include "proc.h"
 #include "syscall.h"
+#include "sysinfo.h"
 
 uint64 sys_exit(void) {
   int n;
@@ -74,8 +75,7 @@ struct sys_trace_info sys_trace_info = {
   .mask = 0
 };
 
-// 因为 pid 总是自增的，这样做大致没有问题。
-// fixme: sys_trace_pids when pid overflow
+// asserts: pid never overflows
 int sys_trace_child_pids[1024];
 int sys_trace_child_pids_tail = 0;
 
@@ -105,5 +105,15 @@ uint64 sys_fork(void) {
 }
 
 uint64 sys_sysinfo(void) {
+  struct proc *p = myproc();
+  struct sysinfo *d;
+  struct sysinfo st;
+  if (argaddr(0, (uint64*)&d) < 0) return -1;
+  printf("sysinfo with addr: %x\n", d);
+  st.freemem = kpageused() * PGSIZE;
+  st.nproc = procn();
+  st.freefd = fdfree();
+  printf("sysinfo { freemem=%d, nproc=%d, freefd=%d }\n", st.freemem, st.nproc, st.freefd);
+  copyout(p->pagetable, (uint64)d, (char*)&st, sizeof(st));
   return 0;
 }
