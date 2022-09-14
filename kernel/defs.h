@@ -1,3 +1,6 @@
+#ifndef _KERNEL_DEFS_H_
+#define _KERNEL_DEFS_H_
+
 struct buf;
 struct context;
 struct file;
@@ -243,10 +246,6 @@ extern int sys_trace_child_pids_tail;
 
 extern const char syscall_names[][10];
 
-// #ifndef DEBUG
-// #define DEBUG 1
-// #endif
+#include "kernel/dbgconf.h"
 
-// #ifndef CONFIG_PRINT_LOG
-// #define CONFIG_PRINT_LOG 1
-// #endif
+#endif  // _KERNEL_DEFS_H_

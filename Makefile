@@ -261,9 +261,10 @@ ifeq ($(LAB),util)
 	UEXTRA += user/xargstest.sh
 endif
 
+FILE_SHRC=user/.shrc
 
-fs.img: mkfs/mkfs README $(UEXTRA) $(UPROGS)
-	mkfs/mkfs fs.img README $(UEXTRA) $(UPROGS)
+fs.img: mkfs/mkfs README $(UEXTRA) $(UPROGS) $(FILE_SHRC)
+	mkfs/mkfs fs.img README $(UEXTRA) $(UPROGS) $(FILE_SHRC)
 
 -include kernel/*.d user/*.d
 
