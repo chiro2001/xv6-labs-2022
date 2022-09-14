@@ -5,6 +5,7 @@
 #include "riscv.h"
 #include "defs.h"
 #include "fs.h"
+#include "debug.h"
 
 /*
  * the kernel's page table.
@@ -133,7 +134,9 @@ int mappages(pagetable_t pagetable, uint64 va, uint64 size, uint64 pa,
   last = PGROUNDDOWN(va + size - 1);
   for (;;) {
     if ((pte = walk(pagetable, a, 1)) == 0) return -1;
-    if (*pte & PTE_V) panic("remap");
+    if (*pte & PTE_V) {
+      Panic("remap: pte=%p, *pte=%p", *pte, pte);
+    }
     *pte = PA2PTE(pa) | perm | PTE_V;
     if (a == last) break;
     a += PGSIZE;
@@ -171,7 +174,20 @@ pagetable_t uvmcreate() {
   pagetable = (pagetable_t)kalloc();
   if (pagetable == 0) return 0;
   memset(pagetable, 0, PGSIZE);
+  Log("map the trampoline va:pa = %p:%p", TRAMPOLINE, trampoline);
+  mappages(pagetable, TRAMPOLINE, PGSIZE, (uint64)trampoline, PTE_R | PTE_X);
+
   return pagetable;
+}
+
+// Switch h/w page table register to user's page table,
+// and enable paging.
+void uvminithart(pagetable_t pagetable) {
+  Log("MAKE_SATP(pagetable) = %x", MAKE_SATP(pagetable));
+  w_satp(MAKE_SATP(pagetable));
+  Log("w_satp(MAKE_SATP(%p))", pagetable);
+  sfence_vma();
+  Log("sfence_vma()");
 }
 
 // Load the user initcode into address 0 of pagetable,

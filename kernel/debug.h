@@ -34,22 +34,13 @@
              ptminfo->tm_mday, ptminfo->tm_hour, ptminfo->tm_min,            \
              ptminfo->tm_sec, str(module), ##__VA_ARGS__);                   \
       } while (0))
-#define Assert(cond, format, ...)                                              \
-  do {                                                                         \
-    if (!(cond)) {                                                             \
-      MUXDEF(                                                                  \
-          CONFIG_TARGET_AM,                                                    \
-          printf(ANSI_FMT(format, ANSI_FG_RED) "\n", ##__VA_ARGS__),           \
-          (fflush(stdout), fprintf(stderr, ANSI_FMT(format, ANSI_FG_RED) "\n", \
-                                   ##__VA_ARGS__)));                           \
-      IFNDEF(CONFIG_CHISEL_X,                                                  \
-             IFNDEF(CONFIG_COMPILE_DDR, extern void isa_reg_display()));       \
-      IFNDEF(CONFIG_CHISEL_X,                                                  \
-             IFNDEF(CONFIG_COMPILE_DDR, extern void statistic()));             \
-      IFNDEF(CONFIG_CHISEL_X, IFNDEF(CONFIG_COMPILE_DDR, isa_reg_display()));  \
-      IFNDEF(CONFIG_CHISEL_X, IFNDEF(CONFIG_COMPILE_DDR, statistic()));        \
-      assert(cond);                                                            \
-    }                                                                          \
+#define Assert(cond, format, ...)                             \
+  do {                                                        \
+    if (!(cond)) {                                            \
+      Err(ANSI_FMT(format, ANSI_FG_RED) "\n", ##__VA_ARGS__); \
+      for (;;)                                                \
+        ;                                                     \
+    }                                                         \
   } while (0)
 
 #define Panic(format, ...) Assert(0, format, ##__VA_ARGS__)

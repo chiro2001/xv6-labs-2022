@@ -5,6 +5,7 @@
 #include "spinlock.h"
 #include "proc.h"
 #include "defs.h"
+#include "debug.h"
 
 struct cpu cpus[NCPU];
 
@@ -103,7 +104,7 @@ found:
     return 0;
   }
 
-  // An empty user page table.
+  // A new user page table.
   p->pagetable = proc_pagetable(p);
   if (p->pagetable == 0) {
     freeproc(p);
@@ -441,11 +442,18 @@ void scheduler(void) {
         // before jumping back to us.
         p->state = RUNNING;
         c->proc = p;
+        // switch to user pagetable
+        extern pagetable_t kernel_pagetable;
+        Log("Switching to user pagetable. kernel = %p, user = %p", kernel_pagetable, p->pagetable);
+        uvminithart(p->pagetable);
+        // uvminithart(kernel_pagetable);
+        Log("Switch done to user pagetable");
         swtch(&c->context, &p->context);
 
         // Process is done running for now.
         // It should have changed its p->state before coming back.
         c->proc = 0; // cpu dosen't run any process now
+        kvminithart();
 
         found = 1;
       }

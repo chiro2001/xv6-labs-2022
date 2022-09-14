@@ -1,2 +1,2 @@
-echo "xv6 OS starts!"
+echo xv6 OS starts!
 kvmtest
