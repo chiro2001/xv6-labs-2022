@@ -15,15 +15,17 @@ int main(int argc, char* argv[]) {
     read(p[0], data, data_len);
     close(p[0]);
     wait(&pid);
-    printf("parent: recv `%s'\n", data);
+    // printf("parent: recv `%s'\n", data);
+    printf("%d: received ping\n", getpid());
   } else {
     close(p[0]);
     // child: send
-    char *data = argc > 1 ? argv[1] : "test data";
-    printf(" child: send `%s'\n", data);
+    char *data = argc > 1 ? argv[1] : "ping";
+    // printf(" child: send `%s'\n", data);
     uint32_t data_len = strlen(data) + 1;
     write(p[1], &data_len, sizeof(data_len));
     write(p[1], data, data_len);
+    printf("%d: received pong\n", getpid());
     close(p[1]);
     exit(0);
   }
