@@ -10,11 +10,10 @@ int main(int argc, char* argv[]) {
 #define PINGPONG_MAX_BUFFER_SIZE 64
   int pid = fork();
   if (pid != 0) {
-    // parent: send ping, recv pong
+    // 主进程
     close(ping[0]);
     close(pong[1]);
     char *data = argc > 1 ? argv[1] : "ping";
-    // printf("parent: send `%s'\n", data);
     uint32_t data_len = strlen(data) + 1;
     write(ping[1], &data_len, sizeof(data_len));
     write(ping[1], data, data_len);
@@ -31,7 +30,7 @@ int main(int argc, char* argv[]) {
     free(data);
     wait(&pid);
   } else {
-    // child: recv ping; send pong
+    // 子进程
     close(ping[1]);
     close(pong[0]);
     uint32_t data_len = 0;
@@ -43,7 +42,6 @@ int main(int argc, char* argv[]) {
     char *data = (char *) malloc(sizeof(char) * data_len);
     read(ping[0], data, data_len);
     close(ping[0]);
-    // printf(" child: recv `%s'\n", data);
     printf("%d: received %s\n", getpid(), data);
     free(data);
     int is_alloc = 0;
