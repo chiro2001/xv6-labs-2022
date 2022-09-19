@@ -9,12 +9,15 @@
 #define W (p[1])
 #define DATA_TYPE uint32_t
 int main(int argc, char* argv[]) {
+  int n;
   if (argc <= 1) {
-    printf("usage: %s n\n\tget all prime numbers in range [2, n]\n",
-           argc == 0 ? "prime" : argv[0]);
-    exit(-1);
+    // printf("usage: %s n\n\tget all prime numbers in range [2, n]\n",
+    //        argc == 0 ? "prime" : argv[0]);
+    // exit(-1);
+    n = 36;
+  } else {
+    n = atoi(argv[1]);
   }
-  int n = atoi(argv[1]);
   if (n <= 1) {
     exit(0);
   }
@@ -32,7 +35,8 @@ int main(int argc, char* argv[]) {
     }
     if (done || data_len == 1) {
       for (int i = 0; i < data_len; i++) {
-        printf("%d\t", data[0]);
+        // printf("%d\t", data[0]);
+        printf("prime %d\n", data[0]);
       }
       printf("\n");
       // printf("done! data_len=%d\n", data_len);
@@ -45,7 +49,8 @@ int main(int argc, char* argv[]) {
       // parent: send data
       close(R);
       // printf("append: %d\n", data[0]);
-      printf("%d\t", data[0]);
+      // printf("%d\t", data[0]);
+      printf("prime %d\n", data[0]);
       for (int i = 1; i < data_len; i++) {
         if (data[i] % data[0] != 0) {
           // if (data[i] == 1)
