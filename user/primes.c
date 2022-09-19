@@ -1,9 +1,8 @@
 #include <stdint.h>
 
+#include "kernel/debug.h"
 #include "kernel/types.h"
 #include "user.h"
-
-#include "kernel/debug.h"
 
 #define Errp(format, ...) Err("[%d] " format, getpid(), ##__VA_ARGS__)
 #define Logp(format, ...) Log("[%d] " format, getpid(), ##__VA_ARGS__)
@@ -20,7 +19,7 @@ int read_data(int p, void *dst, int len) {
     l++;
     if (l == len) return 0;
   }
-  Errp("read fd %d error, ret %d", p, r);
+  if (r < 0) Errp("read fd %d error, ret %d", p, r);
   return -1;
 }
 
@@ -49,24 +48,23 @@ int main(int argc, char *argv[]) {
       DATA_TYPE d = (DATA_TYPE)(i + 2);
       write(W(from), &d, sizeof(DATA_TYPE));
     }
+    close(W(from));
     wait(0);
   } else {
+    close(W(from));
     while (1) {
-      close(W(from));
-      Logp("from[%d, %d]", from[0], from[1]);
       DATA_TYPE prime;
       if (read_data(R(from), &prime, sizeof(DATA_TYPE)) != 0) {
         close(R(from));
+        Logp("done");
         break;
       }
-      Logp("prime %d", prime);
-      // printf("prime %d", prime);
+      printf("prime %d\n", prime);
       int to[2] = {0, 0};
       if (pipe(to) < 0) {
         Errp("cannot open pipe!");
         exit(1);
       }
-      Logp("  to[%d, %d]", to[0], to[1]);
       if (fork() != 0) {
         // 主进程
         close(R(to));
