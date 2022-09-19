@@ -3,6 +3,11 @@
 #include "kernel/types.h"
 #include "user.h"
 
+#include "kernel/debug.h"
+
+#define Errp(format, ...) Err("[%d] " format, getpid(), ##__VA_ARGS__)
+#define Logp(format, ...) Log("[%d] " format, getpid(), ##__VA_ARGS__)
+
 #define R(p) (p[0])
 #define W(p) (p[1])
 #define DATA_TYPE uint32_t
@@ -15,7 +20,7 @@ int read_data(int p, void *dst, int len) {
     l++;
     if (l == len) return 0;
   }
-  printf("read fd %d error, ret %d\n", p, r);
+  Errp("read fd %d error, ret %d", p, r);
   return -1;
 }
 
@@ -35,7 +40,7 @@ int main(int argc, char *argv[]) {
 
   int from[2] = {0, 0};
   if (pipe(from) < 0) {
-    printf("cannot open pipe!\n");
+    Errp("cannot open pipe!");
     exit(1);
   }
   if (fork() != 0) {
@@ -48,20 +53,20 @@ int main(int argc, char *argv[]) {
   } else {
     while (1) {
       close(W(from));
-      printf("from[%d, %d]\n", from[0], from[1]);
+      Logp("from[%d, %d]", from[0], from[1]);
       DATA_TYPE prime;
       if (read_data(R(from), &prime, sizeof(DATA_TYPE)) != 0) {
         close(R(from));
         break;
       }
-      printf("[%d] prime %d\n", getpid(), prime);
-      // printf("prime %d\n", prime);
+      Logp("prime %d", prime);
+      // printf("prime %d", prime);
       int to[2] = {0, 0};
       if (pipe(to) < 0) {
-        printf("cannot open pipe!\n");
+        Errp("cannot open pipe!");
         exit(1);
       }
-      printf("  to[%d, %d]\n", to[0], to[1]);
+      Logp("  to[%d, %d]", to[0], to[1]);
       if (fork() != 0) {
         // 主进程
         close(R(to));
@@ -69,7 +74,7 @@ int main(int argc, char *argv[]) {
         while (read_data(R(from), &d, sizeof(DATA_TYPE)) == 0) {
           if (d % prime == 0) continue;
           if (write(W(to), &d, sizeof(DATA_TYPE)) < 0) {
-            printf("[%d] write pipe %d failed! data: %d\n", getpid(), W(to), d);
+            Errp("write pipe %d failed! data: %d", W(to), d);
             exit(1);
           }
         }
