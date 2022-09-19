@@ -22,3 +22,8 @@ xv6.out*
 submissions/
 ph
 barrier
+
+.git-diff
+.submit
+submit.zip
+tmp/
