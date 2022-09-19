@@ -36,6 +36,7 @@ void procinit(void) {
     char *pa = kalloc();
     if (pa == 0) panic("kalloc");
     uint64 va = KSTACK((int)(p - proc));
+    Log("procinit: mapping kernel stack");
     kvmmap(va, (uint64)pa, PGSIZE, PTE_R | PTE_W);
     p->kstack = va;
   }
@@ -111,6 +112,16 @@ found:
     release(&p->lock);
     return 0;
   }
+
+  // Allocate a page for the process's kernel stack.
+  // Map it high in memory, followed by an invalid
+  // guard page.
+  char *pa = kalloc();
+  if (pa == 0) panic("kalloc");
+  uint64 va = KSTACK((int)(p - proc));
+  Log("allocproc: mapping stack %p", va);
+  mappages(p->pagetable, va, PGSIZE, (uint64)pa, PTE_R | PTE_W);
+  p->kstack = va;
 
   // Set up new context to start executing at forkret,
   // which returns to user space.
@@ -445,8 +456,8 @@ void scheduler(void) {
         // switch to user pagetable
         extern pagetable_t kernel_pagetable;
         Log("Switching to user pagetable. kernel = %p, user = %p", kernel_pagetable, p->pagetable);
+        vmprint(p->pagetable);
         uvminithart(p->pagetable);
-        // uvminithart(kernel_pagetable);
         Log("Switch done to user pagetable");
         swtch(&c->context, &p->context);
 
