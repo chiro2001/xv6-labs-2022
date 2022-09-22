@@ -1,6 +1,8 @@
 #ifndef __MACRO_H__
 #define __MACRO_H__
 
+#include "dbgconf.h"
+
 // macro stringizing
 #define str_temp(x) #x
 #define str(x) str_temp(x)

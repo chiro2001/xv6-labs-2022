@@ -152,7 +152,7 @@ char *fgets(int fd, char *buf, int max) {
 static int execute_shrc_done = 0;
 
 int execute_command(char *buf) {
-  Log("$ %s", buf);
+  // Log("$ %s", buf);
   if (buf[0] == 'c' && buf[1] == 'd' && buf[2] == ' ') {
     // Chdir must be called by the parent, not the child.
     buf[strlen(buf) - 1] = 0;  // chop \n

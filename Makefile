@@ -84,7 +84,12 @@ LD = $(TOOLPREFIX)ld
 OBJCOPY = $(TOOLPREFIX)objcopy
 OBJDUMP = $(TOOLPREFIX)objdump
 
-CFLAGS = -Wall -Werror -O -fno-omit-frame-pointer -ggdb
+CFLAGS = -Wall -Werror -fno-omit-frame-pointer -ggdb
+ifdef DEBUG
+CFLAGS += -O0
+else
+CFLAGS += -O
+endif
 
 ifdef LAB
 LABUPPER = $(shell echo $(LAB) | tr a-z A-Z)
@@ -411,6 +416,8 @@ submit:
 	@git diff 02e3ec08039bd06e5963444ac7d4a6a3140aa9ea HEAD --name-only > .git-diff
 	@mkdir -p .submit
 	@cat .git-diff | while read file; do mkdir -p .submit/$$file; rm -rf .submit/$$file; cp $$file .submit/$$file; done
+	@git format-patch 02e3ec08039bd06e5963444ac7d4a6a3140aa9ea -o .submit/patches
+	-@cp docs/lab*$(LAB)/*.pdf .submit
 	@rm -rf submit.zip
 	@cd .submit && zip ../submit.zip -r .
 	-@rm -rf .submit
