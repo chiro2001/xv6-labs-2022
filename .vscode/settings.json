@@ -1,6 +1,14 @@
 {
     "files.associations": {
         "user.h": "c",
-        "param.h": "c"
+        "param.h": "c",
+        "streambuf": "c",
+        "*.tcc": "c",
+        "deque": "c",
+        "optional": "c",
+        "functional": "c",
+        "string": "c",
+        "tuple": "c",
+        "vector": "c"
     }
 }
