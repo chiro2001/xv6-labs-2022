@@ -1,75 +1,91 @@
 #include <stdint.h>
 
+#include "kernel/debug.h"
 #include "kernel/types.h"
 #include "user.h"
 
-// TODO: fix bug that n > 400 exit abnormally
+#define Errp(format, ...) Err("[%d] " format, getpid(), ##__VA_ARGS__)
+#define Logp(format, ...) Log("[%d] " format, getpid(), ##__VA_ARGS__)
 
-#define R (p[0])
-#define W (p[1])
+#define R(p) (p[0])
+#define W(p) (p[1])
 #define DATA_TYPE uint32_t
-int main(int argc, char* argv[]) {
-  if (argc <= 1) {
-    printf("usage: %s n\n\tget all prime numbers in range [2, n]\n",
-           argc == 0 ? "prime" : argv[0]);
-    exit(-1);
+// #define DATA_TYPE uint8_t
+
+int read_data(int p, void *dst, int len) {
+  int l = 0;
+  int r;
+  while ((r = read(p, dst + l, 1)) == 1) {
+    l++;
+    if (l == len) return 0;
   }
-  int n = atoi(argv[1]);
+  if (r < 0) Errp("read fd %d error, ret %d", p, r);
+  return -1;
+}
+
+int main(int argc, char *argv[]) {
+  int n;
+  if (argc <= 1) {
+    // printf("usage: %s n\n\tget all prime numbers in range [2, n]\n",
+    //        argc == 0 ? "prime" : argv[0]);
+    // exit(-1);
+    n = 36;
+  } else {
+    n = atoi(argv[1]);
+  }
   if (n <= 1) {
     exit(0);
   }
-  DATA_TYPE* data = (DATA_TYPE*)malloc((n - 1) * sizeof(DATA_TYPE));
-  int data_len = n - 1;
-  for (int i = 0; i < n - 1; i++) data[i] = i + 2;
-  int p[2] = {0, 0};
-  while (1) {
-    int done = 1;
-    for (int i = 1; i < data_len; i++) {
-      if (data[i] % data[0] != 0) {
-        done = 0;
+
+  int from[2] = {0, 0};
+  if (pipe(from) < 0) {
+    Errp("cannot open pipe!");
+    exit(1);
+  }
+  if (fork() != 0) {
+    close(R(from));
+    for (int i = 0; i < n - 1; i++) {
+      DATA_TYPE d = (DATA_TYPE)(i + 2);
+      write(W(from), &d, sizeof(DATA_TYPE));
+    }
+    close(W(from));
+    wait(0);
+  } else {
+    close(W(from));
+    while (1) {
+      DATA_TYPE prime;
+      if (read_data(R(from), &prime, sizeof(DATA_TYPE)) != 0) {
+        close(R(from));
+        Logp("done");
         break;
       }
-    }
-    if (done || data_len == 1) {
-      for (int i = 0; i < data_len; i++) {
-        printf("%d\t", data[0]);
+      printf("prime %d\n", prime);
+      int to[2] = {0, 0};
+      if (pipe(to) < 0) {
+        Errp("cannot open pipe!");
+        exit(1);
       }
-      printf("\n");
-      // printf("done! data_len=%d\n", data_len);
-      break;
-    }
-    pipe(p);
-    // printf("fork!\n");
-    int pid = fork();
-    if (pid != 0) {
-      // parent: send data
-      close(R);
-      // printf("append: %d\n", data[0]);
-      printf("%d\t", data[0]);
-      for (int i = 1; i < data_len; i++) {
-        if (data[i] % data[0] != 0) {
-          // if (data[i] == 1)
-          //   printf("W: %d\n", data[i]);
-          if (write(W, &data[i], sizeof(DATA_TYPE)) <= 0) {
-            printf("write failed!\n");
+      if (fork() != 0) {
+        // 主进程
+        close(R(to));
+        DATA_TYPE d;
+        while (read_data(R(from), &d, sizeof(DATA_TYPE)) == 0) {
+          if (d % prime == 0) continue;
+          if (write(W(to), &d, sizeof(DATA_TYPE)) < 0) {
+            Errp("write pipe %d failed! data: %d", W(to), d);
+            exit(1);
           }
         }
+        close(R(from));
+        close(W(to));
+        wait(0);
+        break;
+      } else {
+        // 子进程
+        close(W(to));
+        close(R(from));
+        memcpy(from, to, sizeof(to));
       }
-      close(W);
-      wait(&pid);
-      break;
-    } else {
-      // child: recv data
-      close(W);
-      int read_n = 0;
-      data_len = 0;
-      do {
-        read_n = read(R, &data[data_len], sizeof(DATA_TYPE));
-        data_len += read_n != 0;
-        // if (read_n != 0) printf("R %d: %d\n", read_n, data[data_len - 1]);
-      } while (read_n != 0);
-      if (data_len == 0) break;
-      close(R);
     }
   }
   exit(0);
