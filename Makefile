@@ -316,6 +316,7 @@ submit:
 	@mkdir -p .submit
 	@cat .git-diff | while read file; do mkdir -p .submit/$$file; rm -rf .submit/$$file; cp $$file .submit/$$file; done
 	@cp docs/lab*$(LAB)/*.pdf .submit
+	@git format-patch 02e3ec08039bd06e5963444ac7d4a6a3140aa9ea -o .submit/patches
 	@rm -rf submit.zip
 	@cd .submit && zip ../submit.zip -r .
 	-@rm -rf .submit
