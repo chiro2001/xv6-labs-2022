@@ -445,16 +445,20 @@ void scheduler(void) {
 
         // Process is done running for now.
         // It should have changed its p->state before coming back.
-        c->proc = 0;
+        c->proc = 0; // cpu dosen't run any process now
 
         found = 1;
       }
       release(&p->lock);
     }
-    if (found == 0) {
+#if !defined (LAB_FS)
+    if(found == 0) {
       intr_on();
       asm volatile("wfi");
     }
+#else
+    ;
+#endif
   }
 }
 
