@@ -23,7 +23,6 @@ void pkvmmap(pagetable_t pagetable, uint64 va, uint64 pa, uint64 sz, int perm) {
 pagetable_t pkvminit() {
   pagetable_t pagetable = (pagetable_t)kalloc();
   if (pagetable == 0) return 0;
-  Log("pkvminit: %p", pagetable);
   memset(pagetable, 0, PGSIZE);
 
   // uart registers

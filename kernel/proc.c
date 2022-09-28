@@ -127,8 +127,6 @@ found:
   Log("Mapped user's kernel pagetable stack va:pa = %p:%p", kernel_va, kernel_pa);
   pkvmmap(p->kernel_pagetable, kernel_va, kernel_pa, PGSIZE, PTE_R | PTE_W);
   
-  Log("Walk new kernel pagetable, forkret at %p : %p; paddr %p", forkret, walkaddr(p->kernel_pagetable, (uint64) forkret), kvmpa((uint64)forkret));
-
   // Set up new context to start executing at forkret,
   // which returns to user space.
   memset(&p->context, 0, sizeof(p->context));
@@ -543,7 +541,6 @@ void yield(void) {
 // A fork child's very first scheduling by scheduler()
 // will swtch to forkret.
 void forkret(void) {
-  Log("I am forkret at %p", forkret);
   static int first = 1;
 
   // Still holding p->lock from scheduler.
