@@ -199,7 +199,7 @@ void proc_freepagetable(pagetable_t pagetable, uint64 sz) {
 void proc_free_kernel_pagetable(pagetable_t pagetable) {
   for (int i = 0; i < 512; i++) {
     pte_t pte = pagetable[i];
-    if (!((pte & PTE_V) && (pte & (PTE_W | PTE_R | PTE_X)))) {
+    if ((pte & PTE_V) && (pte & (PTE_W | PTE_R | PTE_X))) {
       uint64 child = PTE2PA(pte);
       proc_free_kernel_pagetable((pagetable_t)child);
       pagetable[i] = 0;
