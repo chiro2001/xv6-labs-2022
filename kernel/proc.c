@@ -277,6 +277,12 @@ int fork(void) {
     release(&np->lock);
     return -1;
   }
+  // Copy user's kernel pagetable flags parent to child
+  if (pkvmcopy(p->pagetable, np->pagetable, p->sz) < 0) {
+    freeproc(np);
+    release(&np->lock);
+    return -1;
+  }
   np->sz = p->sz;
 
   np->parent = p;

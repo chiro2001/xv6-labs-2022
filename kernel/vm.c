@@ -167,6 +167,24 @@ int mappages(pagetable_t pagetable, uint64 va, uint64 size, uint64 pa,
   return 0;
 }
 
+// same as mappages, but ignore remap
+int pkmappages(pagetable_t pagetable, uint64 va, uint64 size, uint64 pa,
+             int perm) {
+  uint64 a, last;
+  pte_t *pte;
+
+  a = PGROUNDDOWN(va);
+  last = PGROUNDDOWN(va + size - 1);
+  for (;;) {
+    if ((pte = walk(pagetable, a, 1)) == 0) return -1;
+    *pte = PA2PTE(pa) | perm | PTE_V;
+    if (a == last) break;
+    a += PGSIZE;
+    pa += PGSIZE;
+  }
+  return 0;
+}
+
 // Remove npages of mappings starting from va. va must be
 // page-aligned. The mappings must exist.
 // Optionally free the physical memory.
@@ -322,6 +340,31 @@ err:
   return -1;
 }
 
+// Copy process's kernel pagetable to new kernel pagetable,
+// will not copy memory but will copy flags
+int pkvmcopy(pagetable_t old, pagetable_t new, uint64 sz) {
+  pte_t *pte;
+  uint64 pa, i;
+  uint flags;
+
+  for (i = 0; i < sz; i += PGSIZE) {
+    if ((pte = walk(old, i, 0)) == 0) panic("pkvmcopy: pte should exist");
+    if ((*pte & PTE_V) == 0) panic("pkvmcopy: page not present");
+    pa = PTE2PA(*pte);
+    // PTE_U will prevent kernel visiting user's memory
+    flags = PTE_FLAGS(*pte) & (~PTE_U);
+    if (pkmappages(new, i, PGSIZE, pa, flags) != 0) {
+      goto err;
+    }
+  }
+  return 0;
+
+  // err..?
+err:
+  uvmunmap(new, 0, i / PGSIZE, 1);
+  return -1;
+}
+
 // mark a PTE invalid for user access.
 // used by exec for the user stack guard page.
 void uvmclear(pagetable_t pagetable, uint64 va) {
@@ -357,6 +400,8 @@ int copyout(pagetable_t pagetable, uint64 dstva, char *src, uint64 len) {
 // Copy len bytes to dst from virtual address srcva in a given page table.
 // Return 0 on success, -1 on error.
 int copyin(pagetable_t pagetable, char *dst, uint64 srcva, uint64 len) {
+  Log("copyin(table=%p, dst=%p, src=%p, len=%p)", pagetable, dst, srcva, len);
+#ifndef COPYIN_USE_NEW
   uint64 n, va0, pa0;
 
   while (len > 0) {
@@ -372,6 +417,9 @@ int copyin(pagetable_t pagetable, char *dst, uint64 srcva, uint64 len) {
     srcva = va0 + PGSIZE;
   }
   return 0;
+#else
+  return copyin_new(pagetable, dst, srcva, len);
+#endif
 }
 
 // Copy a null-terminated string from user to kernel.
@@ -379,6 +427,8 @@ int copyin(pagetable_t pagetable, char *dst, uint64 srcva, uint64 len) {
 // until a '\0', or max.
 // Return 0 on success, -1 on error.
 int copyinstr(pagetable_t pagetable, char *dst, uint64 srcva, uint64 max) {
+  Log("copyinstr(table=%p, dst=%p, src=%p, max=%p)", pagetable, dst, srcva, max);
+#ifndef COPYIN_USE_NEW
   uint64 n, va0, pa0;
   int got_null = 0;
 
@@ -411,6 +461,9 @@ int copyinstr(pagetable_t pagetable, char *dst, uint64 srcva, uint64 max) {
   } else {
     return -1;
   }
+#else
+  return copyinstr_new(pagetable, dst, srcva, max);
+#endif
 }
 
 // check if use global kpgtbl or not
