@@ -6,7 +6,7 @@
 
 1. `user.h` 中添加这个系统调用的函数声明：`int trace(int);`
 
-2. `syscall.h` 中添加系统调用号：`*#define* SYS_trace  22`
+2. `syscall.h` 中添加系统调用号：`#define SYS_trace  22`
 
 3. `usys.pl` 中添加一个 entry：`entry("trace");`
 
@@ -150,7 +150,7 @@ uint64 sys_sysinfo(void) {
    >
    > 2. 用户程序调用 `fork()`，`fork()` 对应的汇编代码为：
    >
-   >    ```assembly
+   >    ```
    >    .global fork
    >    fork:
    >     li a7, SYS_fork
