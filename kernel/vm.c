@@ -342,12 +342,12 @@ err:
 
 // Copy process's kernel pagetable to new kernel pagetable,
 // will not copy memory but will copy flags
-int pkvmcopy(pagetable_t old, pagetable_t new, uint64 sz) {
+int pkvmcopy(pagetable_t old, pagetable_t new, uint64 sz_old, uint64 sz_new) {
   pte_t *pte;
   uint64 pa, i;
   uint flags;
 
-  for (i = 0; i < sz; i += PGSIZE) {
+  for (i = sz_old; i < sz_new; i += PGSIZE) {
     if ((pte = walk(old, i, 0)) == 0) panic("pkvmcopy: pte should exist");
     if ((*pte & PTE_V) == 0) panic("pkvmcopy: page not present");
     pa = PTE2PA(*pte);

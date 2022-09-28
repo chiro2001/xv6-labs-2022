@@ -278,7 +278,7 @@ int fork(void) {
     return -1;
   }
   // Copy user's kernel pagetable flags parent to child
-  if (pkvmcopy(p->pagetable, np->pagetable, p->sz) < 0) {
+  if (pkvmcopy(p->pagetable, np->pagetable, 0, p->sz) < 0) {
     freeproc(np);
     release(&np->lock);
     return -1;
