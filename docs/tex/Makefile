@@ -1,5 +1,5 @@
 PAPER    = main
-TEMPLATE = hcr-cumcm
+TEMPLATE = osreport
 PDF      = $(PAPER).pdf
 REQUIRE  = $(PAPER).tex $(TEMPLATE).sty
 TEMP     = *.aux sections/*.aux *.log *.out *.toc *.xdv *.bbl *.blg *.bcf *.synctex.gz *.run.xml *.markdown.* *_markdown_* dist/ *.tmp
