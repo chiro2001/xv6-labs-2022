@@ -193,7 +193,7 @@ fs.img: mkfs/mkfs README $(UEXTRA) $(UPROGS)
 
 -include kernel/*.d user/*.d
 
-clean: 
+clean: docs-clean
 	rm -f *.tex *.dvi *.idx *.aux *.log *.ind *.ilg \
 	*/*.o */*.d */*.asm */*.sym \
 	$U/initcode $U/initcode.out $K/kernel fs.img \
@@ -311,7 +311,7 @@ myapi.key:
 		false; \
 	fi;
 
-submit:
+submit: docs
 	@git diff 02e3ec08039bd06e5963444ac7d4a6a3140aa9ea HEAD --name-only > .git-diff
 	@mkdir -p .submit
 	@cat .git-diff | while read file; do mkdir -p .submit/$$file; rm -rf .submit/$$file; cp $$file .submit/$$file; done
@@ -322,4 +322,10 @@ submit:
 	-@rm -rf .submit
 	-@rm -rf .git-diff
 
-.PHONY: handin tarball tarball-pref clean grade handin-check
+docs:
+	$(MAKE) -C docs
+
+docs-%:
+	$(MAKE) -C docs $*
+
+.PHONY: handin tarball tarball-pref clean grade handin-check docs docs-%
