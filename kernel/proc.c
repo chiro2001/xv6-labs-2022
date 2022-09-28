@@ -36,7 +36,7 @@ void procinit(void) {
     char *pa = kalloc();
     if (pa == 0) panic("kalloc");
     uint64 va = KSTACK((int)(p - proc));
-    Log("procinit: mapping kernel stack");
+    if (p->pid != 0) Log("procinit: mapping kernel stack, pid: %d", p->pid);
     kvmmap(va, (uint64)pa, PGSIZE, PTE_R | PTE_W);
     p->kstack = va;
   }
@@ -113,15 +113,21 @@ found:
     return 0;
   }
 
-  // Allocate a page for the process's kernel stack.
-  // Map it high in memory, followed by an invalid
-  // guard page.
-  char *pa = kalloc();
-  if (pa == 0) panic("kalloc");
-  uint64 va = KSTACK((int)(p - proc));
-  Log("allocproc: mapping stack %p", va);
-  mappages(p->pagetable, va, PGSIZE, (uint64)pa, PTE_R | PTE_W);
-  p->kstack = va;
+  // produce a new pagetable of user's kernel_pagetable
+  Log("producing new kernel pagetable for pid %d", p->pid);
+  p->kernel_pagetable = pkvminit();
+  if (p->kernel_pagetable == 0) {
+    freeproc(p);
+    release(&p->lock);
+    return 0;
+  }
+  // // Map KSTACK to user's kernel pagetabel
+  uint64 kernel_va = KSTACK((int) (p - proc));
+  uint64 kernel_pa = kvmpa(kernel_va);
+  Log("Mapped user's kernel pagetable stack va:pa = %p:%p", kernel_va, kernel_pa);
+  pkvmmap(p->kernel_pagetable, kernel_va, kernel_pa, PGSIZE, PTE_R | PTE_W);
+  
+  Log("Walk new kernel pagetable, forkret at %p : %p; paddr %p", forkret, walkaddr(p->kernel_pagetable, (uint64) forkret), kvmpa((uint64)forkret));
 
   // Set up new context to start executing at forkret,
   // which returns to user space.
@@ -139,6 +145,7 @@ static void freeproc(struct proc *p) {
   if (p->trapframe) kfree((void *)p->trapframe);
   p->trapframe = 0;
   if (p->pagetable) proc_freepagetable(p->pagetable, p->sz);
+  if (p->kernel_pagetable) proc_free_kernel_pagetable(p->kernel_pagetable);
   p->pagetable = 0;
   p->sz = 0;
   p->pid = 0;
@@ -188,6 +195,19 @@ void proc_freepagetable(pagetable_t pagetable, uint64 sz) {
   uvmfree(pagetable, sz);
 }
 
+// Free a process's kernel page table, but need not free the physical memory it refers to
+void proc_free_kernel_pagetable(pagetable_t pagetable) {
+  for (int i = 0; i < 512; i++) {
+    pte_t pte = pagetable[i];
+    if (!((pte & PTE_V) && (pte & (PTE_W | PTE_R | PTE_X)))) {
+      uint64 child = PTE2PA(pte);
+      proc_free_kernel_pagetable((pagetable_t)child);
+      pagetable[i] = 0;
+    }
+  }
+  kfree(pagetable);
+}
+
 // a user program that calls exec("/init")
 // od -t xC initcode
 uchar initcode[] = {0x17, 0x05, 0x00, 0x00, 0x13, 0x05, 0x45, 0x02, 0x97,
@@ -217,6 +237,8 @@ void userinit(void) {
   p->cwd = namei("/");
 
   p->state = RUNNABLE;
+
+  Log("userinit: pid=%d, pgtbl=%p, kernel_pagetable=%p", p->pid, p->pagetable, p->kernel_pagetable);
 
   release(&p->lock);
 }
@@ -428,6 +450,10 @@ int wait(uint64 addr) {
   }
 }
 
+void show_context(struct context *context) {
+  // Log("Ctx[ra=%p, sp=%p]", context->ra, context->sp);
+}
+
 // Per-CPU process scheduler.
 // Each CPU calls scheduler() after setting itself up.
 // Scheduler never returns.  It loops, doing:
@@ -454,12 +480,15 @@ void scheduler(void) {
         p->state = RUNNING;
         c->proc = p;
         // switch to user pagetable
-        extern pagetable_t kernel_pagetable;
-        Log("Switching to user pagetable. kernel = %p, user = %p", kernel_pagetable, p->pagetable);
-        vmprint(p->pagetable);
-        uvminithart(p->pagetable);
-        Log("Switch done to user pagetable");
+        // IFDEF(CONFIG_PRINT_LOG, extern pagetable_t kernel_pagetable);
+        // Log("Switching to user pagetable. global = %p, kernel = %p, user = %p", kernel_pagetable, p->kernel_pagetable, p->pagetable);
+        pkvminithart(p->kernel_pagetable);
+        // Log("Switch done to user pagetable %s", "!!!");
+        // Log("Switching context %s; forkret at %p", "!!!", forkret);
+        show_context(&c->context);
+        show_context(&p->context);
         swtch(&c->context, &p->context);
+        Dbg("Back to scheduler %p", scheduler);
 
         // Process is done running for now.
         // It should have changed its p->state before coming back.
@@ -514,6 +543,7 @@ void yield(void) {
 // A fork child's very first scheduling by scheduler()
 // will swtch to forkret.
 void forkret(void) {
+  Log("I am forkret at %p", forkret);
   static int first = 1;
 
   // Still holding p->lock from scheduler.
