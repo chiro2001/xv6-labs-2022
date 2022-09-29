@@ -126,6 +126,9 @@ found:
   uint64 kernel_pa = kvmpa(kernel_va);
   Dbg("Mapped user's kernel pagetable stack va:pa = %p:%p", kernel_va, kernel_pa);
   pkvmmap(p->kernel_pagetable, kernel_va, kernel_pa, PGSIZE, PTE_R | PTE_W);
+
+  // Sync even when create
+  // pkvmcopy(p->pagetable, p->kernel_pagetable, 0, PGSIZE);
   
   // Set up new context to start executing at forkret,
   // which returns to user space.
@@ -145,6 +148,7 @@ static void freeproc(struct proc *p) {
   if (p->pagetable) proc_freepagetable(p->pagetable, p->sz);
   if (p->kernel_pagetable) proc_free_kernel_pagetable(p->kernel_pagetable);
   p->pagetable = 0;
+  p->kernel_pagetable = 0;
   p->sz = 0;
   p->pid = 0;
   p->parent = 0;
@@ -227,7 +231,7 @@ void userinit(void) {
   uvminit(p->pagetable, initcode, sizeof(initcode));
   p->sz = PGSIZE;
 
-  pkvmcopy(p->pagetable, p->kernel_pagetable, 0, PGSIZE);
+  pkvmcopy(p->pagetable, p->kernel_pagetable, 0, p->sz);
 
   Log("userinit: pid=%d, pgtbl=%p, kernel_pagetable=%p", p->pid, p->pagetable, p->kernel_pagetable);
 
@@ -253,7 +257,7 @@ int growproc(int n) {
 
   sz = p->sz;
   if (n > 0) {
-    if ((sz = uvmalloc(p->pagetable, sz, sz + n)) == 0) {
+    if (sz + n >= PLIC || (sz = uvmalloc(p->pagetable, sz, sz + n)) == 0) {
       return -1;
     }
     if (pkvmcopy(p->pagetable, p->kernel_pagetable, p->sz, sz) < 0) {

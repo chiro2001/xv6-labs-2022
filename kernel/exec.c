@@ -6,7 +6,7 @@
 #include "proc.h"
 #include "defs.h"
 #include "elf.h"
-#include "debug.h"
+#include "user/debug.h"
 
 static int loadseg(pde_t *pgdir, uint64 addr, struct inode *ip, uint offset,
                    uint sz);
@@ -21,7 +21,32 @@ int exec(char *path, char **argv) {
   pagetable_t pagetable = 0, oldpagetable;
   struct proc *p = myproc();
 
-  Log("exec(%s), pid: %d", path, p->pid);
+  char argv_buf[512] = "NULL";
+  char *argv_p = argv_buf;
+
+  for (char **c = argv; *c; c++) {
+    int len = strlen(*c);
+    memmove(argv_p, *c, len + 1);
+    argv_p += len;
+    *(argv_p++) = ';';
+    *argv_p = '\0';
+  }
+
+  Log("[%d] exec(%s), args: %s", p->pid, path, argv_buf);
+
+  char *path_p = path;
+  int has_space = 0;
+  while (*path_p) {
+    if (*path_p == ' ') {
+      has_space = 1;
+      break;
+    }
+    path_p++;
+  }
+  if (has_space) {
+    Err("exec path should not have space: %s", path);
+    return -1;
+  }
 
   begin_op();
 
@@ -29,6 +54,7 @@ int exec(char *path, char **argv) {
     end_op();
     return -1;
   }
+  Log("[%d] exec got node %p", p->pid, ip);
   ilock(ip);
 
   // Check ELF header

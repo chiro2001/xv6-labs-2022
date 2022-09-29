@@ -73,7 +73,8 @@ __attribute__((noreturn)) void runcmd(struct cmd *cmd) {
       ecmd = (struct execcmd *)cmd;
       if (ecmd->argv[0] == 0) exit(1);
       Log("run exec(%s)", ecmd->argv[0]);
-      exec(ecmd->argv[0], ecmd->argv);
+      int ret = exec(ecmd->argv[0], ecmd->argv);
+      Log("exec exec(%s) failed with ret %d", ecmd->argv[0], ret);
       fprintf(2, "exec %s failed\n", ecmd->argv[0]);
       break;
 
@@ -190,11 +191,53 @@ int execute_shrc() {
   return fd;
 }
 
+void test_pipe() {
+  int p[2] = {0};
+  pipe(p);
+  char source[32] = "test data";
+  char dest[32] = "error data";
+  // int len = strlen(source) + 1;
+  int len = sizeof(source);
+  write(p[1], source, len);
+  read(p[0], dest, len);
+  close(p[1]);
+  close(p[0]);
+  Log("Test Pipe: %s => %s", source, dest);
+}
+
+void test_exec() {
+  Log("Testing exec");
+  char *argv[3] = {
+    "echo", "exec", 0
+  };
+  if (fork() == 0) exec(argv[0], argv);
+  wait(0);
+  char *argv_bad[2] = {
+    "echo exec_bad", 0
+  };
+  if (fork() == 0) {
+    int ret;
+    if ((ret = exec(argv_bad[0], argv_bad)) < 0) {
+      Log("exec(%s) should return < 0: %d", argv_bad[0], ret);
+      exit(0);
+    } else {
+      Err("exec(%s) should return < 0: %d", argv_bad[0], ret);
+      exit(1);
+    }
+  }
+  int ret = -1;
+  wait(&ret);
+  Log("Test pass exec, ret: %d", ret);
+}
+
 int main(void) {
   static char buf[100];
   int fd;
 
   Log("sh starting, pid: %d", getpid());
+
+  test_pipe();
+  test_exec();
 
   // Ensure that three file descriptors are open.
   while ((fd = open("console", O_RDWR)) >= 0) {
