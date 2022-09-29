@@ -6,6 +6,7 @@
 #include "proc.h"
 #include "syscall.h"
 #include "defs.h"
+#include "debug.h"
 
 // Fetch the uint64 at addr from the current process.
 int fetchaddr(uint64 addr, uint64 *ip) {
@@ -21,6 +22,7 @@ int fetchstr(uint64 addr, char *buf, int max) {
   struct proc *p = myproc();
   int err = copyinstr(p->pagetable, buf, addr, max);
   if (err < 0) return err;
+  Log("fetchstr got %s", buf);
   return strlen(buf);
 }
 
@@ -150,8 +152,9 @@ void syscall(void) {
   num = p->trapframe->a7;
   if (num > 0 && num < NELEM(syscalls) && syscalls[num]) {
     int a = p->trapframe->a0;
+    IFDEF(DEBUG_SYS_TRACE, Log("syscall %s pid %d", syscall_names[num], p->pid));
     p->trapframe->a0 = syscalls[num]();
-    if (will_trace && ((1 << num) & sys_trace_info.mask)) {
+    if ((will_trace && ((1 << num) & sys_trace_info.mask)) || MUXDEF(DEBUG_SYS_TRACE, 1, 0)) {
       printf("%d: sys_%s(%d) -> %d\n", p->pid, syscall_names[num], a, p->trapframe->a0);
     }
   } else {

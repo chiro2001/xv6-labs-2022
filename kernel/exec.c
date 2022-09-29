@@ -6,6 +6,7 @@
 #include "proc.h"
 #include "defs.h"
 #include "elf.h"
+#include "debug.h"
 
 static int loadseg(pde_t *pgdir, uint64 addr, struct inode *ip, uint offset,
                    uint sz);
@@ -19,6 +20,8 @@ int exec(char *path, char **argv) {
   struct proghdr ph;
   pagetable_t pagetable = 0, oldpagetable;
   struct proc *p = myproc();
+
+  Log("exec(%s), pid: %d", path, p->pid);
 
   begin_op();
 
@@ -101,7 +104,7 @@ int exec(char *path, char **argv) {
   proc_freepagetable(oldpagetable, oldsz);
 
   // Copy kernel pagetable
-  if (pkvmcopy(pagetable, p->kernel_pagetable, 0, sz) < 0) goto bad;
+  if (pkvmcopy(p->pagetable, p->kernel_pagetable, 0, sz) < 0) goto bad;
 
   if (p->pid == 1) {
     vmprint(p->pagetable);

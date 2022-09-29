@@ -207,6 +207,20 @@ void uvmunmap(pagetable_t pagetable, uint64 va, uint64 npages, int do_free) {
   }
 }
 
+void pkvmunmap(pagetable_t pagetable, uint64 va, uint64 npages) {
+  uint64 a;
+  pte_t *pte;
+
+  if ((va % PGSIZE) != 0) panic("pkvmunmap: not aligned");
+
+  for (a = va; a < va + npages * PGSIZE; a += PGSIZE) {
+    if ((pte = walk(pagetable, a, 0)) == 0) panic("pkvmunmap: walk");
+    if ((*pte & PTE_V) == 0) panic("pkvmunmap: not mapped");
+    if (PTE_FLAGS(*pte) == PTE_V) panic("pkvmunmap: not a leaf");
+    *pte = 0;
+  }
+}
+
 // create an empty user page table.
 // returns 0 if out of memory.
 pagetable_t uvmcreate() {
@@ -215,19 +229,6 @@ pagetable_t uvmcreate() {
   if (pagetable == 0) return 0;
   memset(pagetable, 0, PGSIZE);
   return pagetable;
-}
-
-// Switch h/w page table register to user's page table,
-// and enable paging.
-void uvminithart(pagetable_t pagetable) {
-  // Log("MAKE_SATP(%p): %x => %x", pagetable, r_satp(), MAKE_SATP(pagetable));
-  // Log("uvminithart mode: %x", (r_mstatus() & MSTATUS_MPP_MASK) != 0);
-  // w_satp(MAKE_SATP(kernel_pagetable));
-  // printf("#0\n");
-  w_satp(MAKE_SATP(pagetable));
-  printf("#1\n");
-  sfence_vma();
-  // Log("sfence_vma()");
 }
 
 // Load the user initcode into address 0 of pagetable,
@@ -302,6 +303,17 @@ void freewalk(pagetable_t pagetable) {
   kfree((void *)pagetable);
 }
 
+uint64 pkvmdealloc(pagetable_t pagetable, uint64 oldsz, uint64 newsz) {
+  if (newsz >= oldsz) return oldsz;
+
+  if (PGROUNDUP(newsz) < PGROUNDUP(oldsz)) {
+    int npages = (PGROUNDUP(oldsz) - PGROUNDUP(newsz)) / PGSIZE;
+    pkvmunmap(pagetable, PGROUNDUP(newsz), npages);
+  }
+
+  return newsz;
+}
+
 // Free user memory pages,
 // then free page-table pages.
 void uvmfree(pagetable_t pagetable, uint64 sz) {
@@ -340,18 +352,22 @@ err:
   return -1;
 }
 
-// Copy process's kernel pagetable to new kernel pagetable,
-// will not copy memory but will copy flags
+// Copy process's user pagetable to new kernel pagetable, will only copy flags
 int pkvmcopy(pagetable_t old, pagetable_t new, uint64 sz_old, uint64 sz_new) {
   pte_t *pte;
   uint64 pa, i;
   uint flags;
 
+  Dbg("pkvmcopy(%p, %p, %x, %x)", old, new, sz_old, sz_new);
+
   for (i = sz_old; i < sz_new; i += PGSIZE) {
     if ((pte = walk(old, i, 0)) == 0) panic("pkvmcopy: pte should exist");
-    if ((*pte & PTE_V) == 0) panic("pkvmcopy: page not present");
+    if ((*pte & PTE_V) == 0) {
+      Panic("pkvmcopy: page not present! *pte = %p", *pte);
+      panic("pkvmcopy: page not present");
+    }
     pa = PTE2PA(*pte);
-    // PTE_U will prevent kernel visiting user's memory
+    // PTE_U will prevent kernel visiting user's memory, remove PTE_U flag
     flags = PTE_FLAGS(*pte) & (~PTE_U);
     if (pkmappages(new, i, PGSIZE, pa, flags) != 0) {
       goto err;
@@ -361,7 +377,7 @@ int pkvmcopy(pagetable_t old, pagetable_t new, uint64 sz_old, uint64 sz_new) {
 
   // err..?
 err:
-  uvmunmap(new, 0, i / PGSIZE, 1);
+  pkvmunmap(new, 0, i / PGSIZE);
   return -1;
 }
 
@@ -400,7 +416,7 @@ int copyout(pagetable_t pagetable, uint64 dstva, char *src, uint64 len) {
 // Copy len bytes to dst from virtual address srcva in a given page table.
 // Return 0 on success, -1 on error.
 int copyin(pagetable_t pagetable, char *dst, uint64 srcva, uint64 len) {
-  Log("copyin(table=%p, dst=%p, src=%p, len=%p)", pagetable, dst, srcva, len);
+  // Log("copyin(table=%p, dst=%p, src=%p, len=%p)", pagetable, dst, srcva, len);
 #ifndef COPYIN_USE_NEW
   uint64 n, va0, pa0;
 
@@ -427,7 +443,7 @@ int copyin(pagetable_t pagetable, char *dst, uint64 srcva, uint64 len) {
 // until a '\0', or max.
 // Return 0 on success, -1 on error.
 int copyinstr(pagetable_t pagetable, char *dst, uint64 srcva, uint64 max) {
-  Log("copyinstr(table=%p, dst=%p, src=%p, max=%p)", pagetable, dst, srcva, max);
+  // Log("copyinstr(table=%p, dst=%p, src=%p, max=%p)", pagetable, dst, srcva, max);
 #ifndef COPYIN_USE_NEW
   uint64 n, va0, pa0;
   int got_null = 0;

@@ -114,7 +114,7 @@ found:
   }
 
   // produce a new pagetable of user's kernel_pagetable
-  Log("producing new kernel pagetable for pid %d", p->pid);
+  Dbg("producing new kernel pagetable for pid %d", p->pid);
   p->kernel_pagetable = pkvminit();
   if (p->kernel_pagetable == 0) {
     freeproc(p);
@@ -124,7 +124,7 @@ found:
   // // Map KSTACK to user's kernel pagetabel
   uint64 kernel_va = KSTACK((int) (p - proc));
   uint64 kernel_pa = kvmpa(kernel_va);
-  Log("Mapped user's kernel pagetable stack va:pa = %p:%p", kernel_va, kernel_pa);
+  Dbg("Mapped user's kernel pagetable stack va:pa = %p:%p", kernel_va, kernel_pa);
   pkvmmap(p->kernel_pagetable, kernel_va, kernel_pa, PGSIZE, PTE_R | PTE_W);
   
   // Set up new context to start executing at forkret,
@@ -227,6 +227,10 @@ void userinit(void) {
   uvminit(p->pagetable, initcode, sizeof(initcode));
   p->sz = PGSIZE;
 
+  pkvmcopy(p->pagetable, p->kernel_pagetable, 0, PGSIZE);
+
+  Log("userinit: pid=%d, pgtbl=%p, kernel_pagetable=%p", p->pid, p->pagetable, p->kernel_pagetable);
+
   // prepare for the very first "return" from kernel to user.
   p->trapframe->epc = 0;      // user program counter
   p->trapframe->sp = PGSIZE;  // user stack pointer
@@ -235,8 +239,6 @@ void userinit(void) {
   p->cwd = namei("/");
 
   p->state = RUNNABLE;
-
-  Log("userinit: pid=%d, pgtbl=%p, kernel_pagetable=%p", p->pid, p->pagetable, p->kernel_pagetable);
 
   release(&p->lock);
 }
@@ -247,13 +249,19 @@ int growproc(int n) {
   uint sz;
   struct proc *p = myproc();
 
+  Dbg("[%d] growproc(%d)", p->pid, n);
+
   sz = p->sz;
   if (n > 0) {
     if ((sz = uvmalloc(p->pagetable, sz, sz + n)) == 0) {
       return -1;
     }
+    if (pkvmcopy(p->pagetable, p->kernel_pagetable, p->sz, sz) < 0) {
+      return -1;
+    }
   } else if (n < 0) {
     sz = uvmdealloc(p->pagetable, sz, sz + n);
+    pkvmdealloc(p->kernel_pagetable, p->sz, sz);
   }
   p->sz = sz;
   return 0;
@@ -271,14 +279,10 @@ int fork(void) {
     return -1;
   }
 
+  Dbg("[%d] fork -> %d", p->pid, np->pid);
+
   // Copy user memory from parent to child.
   if (uvmcopy(p->pagetable, np->pagetable, p->sz) < 0) {
-    freeproc(np);
-    release(&np->lock);
-    return -1;
-  }
-  // Copy user's kernel pagetable flags parent to child
-  if (pkvmcopy(p->pagetable, np->pagetable, 0, p->sz) < 0) {
     freeproc(np);
     release(&np->lock);
     return -1;
@@ -297,6 +301,13 @@ int fork(void) {
   for (i = 0; i < NOFILE; i++)
     if (p->ofile[i]) np->ofile[i] = filedup(p->ofile[i]);
   np->cwd = idup(p->cwd);
+
+  // Copy user's kernel pagetable flags parent to child
+  if (pkvmcopy(p->pagetable, np->kernel_pagetable, 0, p->sz) < 0) {
+    freeproc(np);
+    release(&np->lock);
+    return -1;
+  }
 
   safestrcpy(np->name, p->name, sizeof(p->name));
 
@@ -338,6 +349,8 @@ void reparent(struct proc *p) {
 // until its parent calls wait().
 void exit(int status) {
   struct proc *p = myproc();
+
+  Log("[%d] exit(%d)", p->pid, status);
 
   if (p == initproc) panic("init exiting");
 

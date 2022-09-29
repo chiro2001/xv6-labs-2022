@@ -1,6 +1,6 @@
 #include <stdint.h>
 
-#include "kernel/debug.h"
+#include "user/debug.h"
 #include "kernel/types.h"
 #include "user.h"
 

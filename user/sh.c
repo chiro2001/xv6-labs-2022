@@ -3,7 +3,7 @@
 #include "kernel/types.h"
 #include "user/user.h"
 #include "kernel/fcntl.h"
-#include "kernel/debug.h"
+#include "user/debug.h"
 
 // Parsed command representation
 #define EXEC 1
@@ -72,6 +72,7 @@ __attribute__((noreturn)) void runcmd(struct cmd *cmd) {
     case EXEC:
       ecmd = (struct execcmd *)cmd;
       if (ecmd->argv[0] == 0) exit(1);
+      Log("run exec(%s)", ecmd->argv[0]);
       exec(ecmd->argv[0], ecmd->argv);
       fprintf(2, "exec %s failed\n", ecmd->argv[0]);
       break;
@@ -152,6 +153,7 @@ char *fgets(int fd, char *buf, int max) {
 static int execute_shrc_done = 0;
 
 int execute_command(char *buf) {
+  Log("execute_command(%s)", buf);
   // Log("$ %s", buf);
   if (buf[0] == 'c' && buf[1] == 'd' && buf[2] == ' ') {
     // Chdir must be called by the parent, not the child.
@@ -191,6 +193,8 @@ int execute_shrc() {
 int main(void) {
   static char buf[100];
   int fd;
+
+  Log("sh starting, pid: %d", getpid());
 
   // Ensure that three file descriptors are open.
   while ((fd = open("console", O_RDWR)) >= 0) {
@@ -430,6 +434,7 @@ struct cmd *parseexec(char **ps, char *es) {
   while (!peek(ps, es, "|)&;")) {
     if ((tok = gettoken(ps, es, &q, &eq)) == 0) break;
     if (tok != 'a') panic("syntax");
+    Log("add argv: %s, eargv: %s", q, eq);
     cmd->argv[argc] = q;
     cmd->eargv[argc] = eq;
     argc++;
