@@ -27,8 +27,11 @@ void kinit() {
   initlock(&kmem[cpuid()].lock, "kmem");
   uint64 size = ((uint64)PHYSTOP - (uint64)end) / CPUS;
   freerange(end + size * cpuid(), end + size * (cpuid() + 1));
-  printf("KMEM: cpu %d [%p - %p], total %x PAGES, PGSIZE %x, cpu %x PAGES\n", cpuid(), end, PHYSTOP,
-         ((uint64)PHYSTOP - (uint64)end) / PGSIZE, PGSIZE, size / PGSIZE);
+  printf(
+      "KMEM: [%p - %p], cpu %d [%p - %p], total %x PAGES, PGSIZE %x, cpu %x "
+      "PAGES\n",
+      end, PHYSTOP, cpuid(), end + size * cpuid(), end + size * (cpuid() + 1),
+      ((uint64)PHYSTOP - (uint64)end) / PGSIZE, PGSIZE, size / PGSIZE);
 }
 
 void freerange(void *pa_start, void *pa_end) {
@@ -70,6 +73,21 @@ void *kalloc(void) {
   r = kmem[cid].freelist;
   if (r) kmem[cid].freelist = r->next;
   release(&kmem[cid].lock);
+  if (!r) {
+    // "steal" part of other CPU's freelist
+    // lock in order
+    for (int i = 0; i < CPUS; i++)
+      acquire(&kmem[i].lock);
+    for (int i = 0; i < CPUS; i++) {
+      r = kmem[i].freelist;
+      if (r) {
+        kmem[i].freelist = r->next;
+        break;
+      }
+    }
+    for (int i = CPUS - 1; i >= 0; i--)
+      release(&kmem[i].lock);
+  }
 
   if (r) memset((char *)r, 5, PGSIZE);  // fill with junk
   return (void *)r;
