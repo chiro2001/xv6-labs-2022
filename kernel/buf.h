@@ -1,3 +1,5 @@
+#ifndef _INC_BUF_H
+#define _INC_BUF_H
 struct buf {
   int valid;   // has data been read from disk?
   int disk;    // does disk "own" buf?
@@ -9,4 +11,4 @@ struct buf {
   struct buf *next;
   uchar data[BSIZE];
 };
-
+#endif

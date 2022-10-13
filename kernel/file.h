@@ -1,3 +1,5 @@
+#ifndef _INC_FILE_H
+#define _INC_FILE_H
 struct file {
 #ifdef LAB_NET
   enum { FD_NONE, FD_PIPE, FD_INODE, FD_DEVICE, FD_SOCK } type;
@@ -49,3 +51,4 @@ extern struct devsw devsw[];
 
 #define CONSOLE 1
 #define STATS   2
+#endif  // _INC_FILE_H
