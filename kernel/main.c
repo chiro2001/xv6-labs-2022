@@ -41,6 +41,8 @@ main()
   } else {
     while(started == 0)
       ;
+    // also init kmem
+    kinit();
     __sync_synchronize();
     printf("hart %d starting\n", cpuid());
     kvminithart();    // turn on paging
