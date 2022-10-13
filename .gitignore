@@ -27,3 +27,4 @@ submit.zip
 tmp/
 ph
 barrier
+*.log

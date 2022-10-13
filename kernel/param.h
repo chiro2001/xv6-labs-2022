@@ -20,6 +20,6 @@
 #endif
 
 // Split kmem to every cpu cores
-// #define KMEM_SPLIT 1
+#define KMEM_SPLIT 1
 
 #endif  // _INC_PARAM_H

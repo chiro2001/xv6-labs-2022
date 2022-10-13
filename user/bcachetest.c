@@ -98,6 +98,7 @@ void test0() {
       exit(1);
     }
   }
+  Log("file create done");
   m = ntas(0);
   for (int i = 0; i < NCHILD; i++) {
     dir[0] = '0' + i;
@@ -113,7 +114,7 @@ void test0() {
       }
 
       readfile(file, N * BSIZE, 1);
-
+      Log("child %d read done", i);
       exit(0);
     }
   }
