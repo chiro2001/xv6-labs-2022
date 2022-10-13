@@ -1,10 +1,11 @@
-#include "param.h"
-#include "types.h"
-#include "memlayout.h"
-#include "elf.h"
-#include "riscv.h"
 #include "defs.h"
+#include "elf.h"
 #include "fs.h"
+#include "kernel/common.h"
+#include "memlayout.h"
+#include "param.h"
+#include "riscv.h"
+#include "types.h"
 
 /*
  * the kernel's page table.
@@ -379,7 +380,8 @@ int test_pagetable() {
   return satp != gsatp;
 }
 
-#define PTE_VALID(pte) if (!(pte & PTE_V)) continue;
+#define PTE_VALID(pte) \
+  if (!(pte & PTE_V)) continue;
 
 void vmprint(pagetable_t pagetable) {
   printf("page table %p\n", pagetable);

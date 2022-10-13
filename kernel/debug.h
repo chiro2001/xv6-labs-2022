@@ -3,17 +3,24 @@
 
 #include "utils.h"
 
+#ifndef LOG_COLOR
+#define LOG_COLOR ANSI_FG_BLUE
+#endif
+#ifndef LOG_COLOR_ERR
+#define LOG_COLOR_ERR ANSI_FG_RED
+#endif
+
 #define Log(format, ...)                                                    \
-  _Log(CONFIG_PRINT_LOG, ANSI_FMT("[%s:%d %s] " format, ANSI_FG_BLUE) "\n", \
+  _Log(CONFIG_PRINT_LOG, ANSI_FMT("[%s:%d %s] " format, LOG_COLOR) "\n", \
        __FILE__, __LINE__, __func__, ##__VA_ARGS__)
 
 #define Err(format, ...)                                                 \
   _Err(CONFIG_PRINT_LOG,                                                 \
-       ANSI_FMT("[%s:%d %s ERROR] " format, ANSI_FG_RED) "\n", __FILE__, \
+       ANSI_FMT("[%s:%d %s ERROR] " format, LOG_COLOR_ERR) "\n", __FILE__, \
        __LINE__, __func__, ##__VA_ARGS__)
 
 #define Dbg(format, ...)                                                   \
-  _Log(DEBUG, ANSI_FMT("[%s:%d %s] " format, ANSI_FG_BLUE) "\n", __FILE__, \
+  _Log(DEBUG, ANSI_FMT("[%s:%d %s] " format, LOG_COLOR) "\n", __FILE__, \
        __LINE__, __func__, ##__VA_ARGS__)
 
 #define printt(module, format, ...)                                     \

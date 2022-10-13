@@ -1,14 +1,15 @@
-#include "types.h"
-#include "riscv.h"
-#include "defs.h"
 #include "date.h"
-#include "param.h"
+#include "debug.h"
+#include "defs.h"
+#include "kernel/common.h"
 #include "memlayout.h"
-#include "spinlock.h"
+#include "param.h"
 #include "proc.h"
+#include "riscv.h"
+#include "spinlock.h"
 #include "syscall.h"
 #include "sysinfo.h"
-#include "debug.h"
+#include "types.h"
 
 uint64 sys_exit(void) {
   int n;
@@ -71,16 +72,9 @@ uint64 sys_uptime(void) {
   return xticks;
 }
 
-uint64
-sys_checkvm()
-{
-  return (uint64)test_pagetable(); 
-}
+uint64 sys_checkvm() { return (uint64)test_pagetable(); }
 
-struct sys_trace_info sys_trace_info = {
-  .p = 0,
-  .mask = 0
-};
+struct sys_trace_info sys_trace_info = {.p = 0, .mask = 0};
 
 // asserts: pid never overflows
 int sys_trace_child_pids[1024];
@@ -90,9 +84,11 @@ uint64 sys_trace(void) {
   if (sys_trace_info.p) return -1;
   sys_trace_info.p = myproc();
   argint(0, &sys_trace_info.mask);
-  // printf("pid %d tracing %d...\n", sys_trace_info.p->pid, sys_trace_info.mask);
+  // printf("pid %d tracing %d...\n", sys_trace_info.p->pid,
+  // sys_trace_info.mask);
   if (SYS_trace & sys_trace_info.mask)
-    printf("%d: sys_%s(%d) -> %d\n", sys_trace_info.p->pid, syscall_names[SYS_trace], sys_trace_info.p->trapframe->a0, 0);
+    printf("%d: sys_%s(%d) -> %d\n", sys_trace_info.p->pid,
+           syscall_names[SYS_trace], sys_trace_info.p->trapframe->a0, 0);
   sys_trace_child_pids[0] = sys_trace_info.p->pid;
   sys_trace_child_pids_tail = 1;
   return 0;
@@ -116,7 +112,7 @@ uint64 sys_sysinfo(void) {
   struct proc *p = myproc();
   struct sysinfo *d;
   struct sysinfo st;
-  if (argaddr(0, (uint64*)&d) < 0) return -1;
+  if (argaddr(0, (uint64 *)&d) < 0) return -1;
   // printf("\tsysinfo with addr: %p\n", d);
   // check bad address
   int is_bad_addr = 0;
@@ -133,7 +129,8 @@ uint64 sys_sysinfo(void) {
   st.freemem = kpagefree() * PGSIZE;
   st.nproc = procn();
   st.freefd = fdfree();
-  Dbg("sysinfo { freemem=%x, nproc=%d, freefd=%d }", st.freemem, st.nproc, st.freefd);
-  copyout(p->pagetable, (uint64)d, (char*)&st, sizeof(st));
+  Dbg("sysinfo { freemem=%x, nproc=%d, freefd=%d }", st.freemem, st.nproc,
+      st.freefd);
+  copyout(p->pagetable, (uint64)d, (char *)&st, sizeof(st));
   return 0;
 }

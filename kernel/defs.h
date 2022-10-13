@@ -1,6 +1,8 @@
 #ifndef _KERNEL_DEFS_H_
 #define _KERNEL_DEFS_H_
 
+#include "kernel/common.h"
+
 struct buf;
 struct context;
 struct file;

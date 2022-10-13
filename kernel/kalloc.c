@@ -2,13 +2,13 @@
 // kernel stacks, page-table pages,
 // and pipe buffers. Allocates whole 4096-byte pages.
 
-#include "types.h"
-#include "param.h"
-#include "memlayout.h"
-#include "spinlock.h"
-#include "riscv.h"
 #include "defs.h"
 #include "kernel/debug.h"
+#include "memlayout.h"
+#include "param.h"
+#include "riscv.h"
+#include "spinlock.h"
+#include "types.h"
 
 void freerange(void *pa_start, void *pa_end);
 
@@ -35,8 +35,7 @@ void kinit() {
   Log("cpu[%d] lock init: %s; cpu %d", cpuid(), lock_name, cpuid());
   uint64 size = ((uint64)PHYSTOP - (uint64)end) / CPUS;
   freerange(end + size * cpuid(), end + size * (cpuid() + 1));
-  Log(
-      "KMEM: [%p - %p], cpu %d [%p - %p], total %x PAGES, PGSIZE %x, cpu %x "
+  Log("KMEM: [%p - %p], cpu %d [%p - %p], total %x PAGES, PGSIZE %x, cpu %x "
       "PAGES",
       end, PHYSTOP, cpuid(), end + size * cpuid(), end + size * (cpuid() + 1),
       ((uint64)PHYSTOP - (uint64)end) / PGSIZE, PGSIZE, size / PGSIZE);
@@ -87,8 +86,7 @@ void *kalloc(void) {
   if (!r) {
     // "steal" part of other CPU's freelist
     // lock in order
-    for (int i = 0; i < CPUS; i++)
-      acquire(&kmem[i].lock);
+    for (int i = 0; i < CPUS; i++) acquire(&kmem[i].lock);
     for (int i = 0; i < CPUS; i++) {
       r = kmem[i].freelist;
       if (r) {
@@ -96,8 +94,7 @@ void *kalloc(void) {
         break;
       }
     }
-    for (int i = CPUS - 1; i >= 0; i--)
-      release(&kmem[i].lock);
+    for (int i = CPUS - 1; i >= 0; i--) release(&kmem[i].lock);
   }
 
   if (r) memset((char *)r, 5, PGSIZE);  // fill with junk

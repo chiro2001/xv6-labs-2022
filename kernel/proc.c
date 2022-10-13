@@ -1,10 +1,12 @@
-#include "types.h"
-#include "param.h"
+#include "proc.h"
+
+#include "defs.h"
+#include "kernel/common.h"
 #include "memlayout.h"
+#include "param.h"
 #include "riscv.h"
 #include "spinlock.h"
-#include "proc.h"
-#include "defs.h"
+#include "types.h"
 
 struct cpu cpus[NCPU];
 
@@ -431,14 +433,14 @@ void scheduler(void) {
   for (;;) {
     // Avoid deadlock by ensuring that devices can interrupt.
     intr_on();
-    
+
     int nproc = 0;
-    for(p = proc; p < &proc[NPROC]; p++) {
+    for (p = proc; p < &proc[NPROC]; p++) {
       acquire(&p->lock);
-      if(p->state != UNUSED) {
+      if (p->state != UNUSED) {
         nproc++;
       }
-      if(p->state == RUNNABLE) {
+      if (p->state == RUNNABLE) {
         // Switch to chosen process.  It is the process's job
         // to release its lock and then reacquire it
         // before jumping back to us.
@@ -452,7 +454,7 @@ void scheduler(void) {
       }
       release(&p->lock);
     }
-    if(nproc <= 2) {   // only init and sh exist
+    if (nproc <= 2) {  // only init and sh exist
       intr_on();
       asm volatile("wfi");
     }
