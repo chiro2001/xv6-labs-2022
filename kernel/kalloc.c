@@ -25,7 +25,7 @@ struct {
 
 void kinit() {
   initlock(&kmem[cpuid()].lock, "kmem");
-  uint64 size = ((uint64)PHYSTOP - (uint64)end) / NCPU;
+  uint64 size = ((uint64)PHYSTOP - (uint64)end) / CPUS;
   freerange(end + size * cpuid(), end + size * (cpuid() + 1));
   printf("KMEM: cpu %d [%p - %p], total %x PAGES, PGSIZE %x, cpu %x PAGES\n", cpuid(), end, PHYSTOP,
          ((uint64)PHYSTOP - (uint64)end) / PGSIZE, PGSIZE, size / PGSIZE);
