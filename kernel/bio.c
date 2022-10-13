@@ -16,6 +16,7 @@
 #include "buf.h"
 #include "defs.h"
 #include "fs.h"
+#include "kernel/common.h"
 #include "param.h"
 #include "riscv.h"
 #include "sleeplock.h"

@@ -10,7 +10,7 @@
 #include "spinlock.h"
 #include "types.h"
 
-void freerange(void *pa_start, void *pa_end);
+#define KMEM_CPUS MUXDEF(KMEM_SPLIT, CPUS, 1)
 
 extern char end[];  // first address after kernel.
                     // defined by kernel.ld.
@@ -24,20 +24,26 @@ struct {
   struct run *freelist;
 } kmem[NCPU];
 
+void freerange(void *pa_start, void *pa_end);
+
 void kinit() {
+  if (cpuid() != 0) {
+    IFNDEF(KMEM_SPLIT, return );
+  }
   const char lock_name_const[] = "kmem_hart ";
   char lock_name[sizeof(lock_name_const)];
   for (int i = 0; i < sizeof(lock_name_const); i++) {
     lock_name[i] = lock_name_const[i];
   }
-  lock_name[9] = cpuid() + '0';
-  initlock(&kmem[cpuid()].lock, lock_name);
-  Log("cpu[%d] lock init: %s; cpu %d", cpuid(), lock_name, cpuid());
-  uint64 size = ((uint64)PHYSTOP - (uint64)end) / CPUS;
-  freerange(end + size * cpuid(), end + size * (cpuid() + 1));
+  int cid = MUXDEF(KMEM_SPLIT, cpuid(), 0);
+  IFDEF(KMEM_SPLIT, lock_name[9] = cid + '0');
+  initlock(&kmem[cid].lock, lock_name);
+  Log("cpu[%d] lock init: %s; cpu %d", cid, lock_name, cid);
+  uint64 size = ((uint64)PHYSTOP - (uint64)end) / KMEM_CPUS;
+  freerange(end + size * cid, end + size * (cid + 1));
   Log("KMEM: [%p - %p], cpu %d [%p - %p], total %x PAGES, PGSIZE %x, cpu %x "
       "PAGES",
-      end, PHYSTOP, cpuid(), end + size * cpuid(), end + size * (cpuid() + 1),
+      end, PHYSTOP, cid, end + size * cid, end + size * (cid + 1),
       ((uint64)PHYSTOP - (uint64)end) / PGSIZE, PGSIZE, size / PGSIZE);
 }
 
@@ -62,7 +68,7 @@ void kfree(void *pa) {
 
   r = (struct run *)pa;
 
-  int cid = cpuid();
+  int cid = MUXDEF(KMEM_SPLIT, cpuid(), 0);
   acquire(&kmem[cid].lock);
   r->next = kmem[cid].freelist;
   kmem[cid].freelist = r;
@@ -75,7 +81,7 @@ void kfree(void *pa) {
 void *kalloc(void) {
   struct run *r;
 
-  int cid = cpuid();
+  int cid = MUXDEF(KMEM_SPLIT, cpuid(), 0);
   acquire(&kmem[cid].lock);
   // if (cid != 0)
   //   r = kmem[cid].freelist;
@@ -86,15 +92,15 @@ void *kalloc(void) {
   if (!r) {
     // "steal" part of other CPU's freelist
     // lock in order
-    for (int i = 0; i < CPUS; i++) acquire(&kmem[i].lock);
-    for (int i = 0; i < CPUS; i++) {
+    for (int i = 0; i < KMEM_CPUS; i++) acquire(&kmem[i].lock);
+    for (int i = 0; i < KMEM_CPUS; i++) {
       r = kmem[i].freelist;
       if (r) {
         kmem[i].freelist = r->next;
         break;
       }
     }
-    for (int i = CPUS - 1; i >= 0; i--) release(&kmem[i].lock);
+    for (int i = KMEM_CPUS - 1; i >= 0; i--) release(&kmem[i].lock);
   }
 
   if (r) memset((char *)r, 5, PGSIZE);  // fill with junk
@@ -109,7 +115,7 @@ uint32 kpageused(void) {
 // Get how many free pages
 uint32 kpagefree(void) {
   int n = 0;
-  int cid = cpuid();
+  int cid = MUXDEF(KMEM_SPLIT, cpuid(), 0);
   struct run *r = kmem[cid].freelist;
   acquire(&kmem[cid].lock);
   while (r) {
