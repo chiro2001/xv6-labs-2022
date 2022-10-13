@@ -25,22 +25,53 @@
 
 #define BIO_SPLIT_LOCK 1
 
+// #define BIO_LOG 1
+
+#if 0
 #define LOCK_BUF                                                         \
   do {                                                                   \
     IFDEF(BIO_SPLIT_LOCK, acquire(&bcache.lock_bucket[b - bcache.buf])); \
-    IFDEF(BIO_SPLIT_LOCK, Log("LOCK_BUF(%d)", b - bcache.buf));          \
   } while (0)
 #define UNLOCK_BUF                                                       \
   do {                                                                   \
-    IFDEF(BIO_SPLIT_LOCK, Log("UNLOCK_BUF(%d)", b - bcache.buf));        \
     IFDEF(BIO_SPLIT_LOCK, release(&bcache.lock_bucket[b - bcache.buf])); \
+  } while (0)
+#endif
+
+#define LOCK_BUF_LOG IFDEF(BIO_LOG, Log("\t  LOCK_BUF(%d)", b - bcache.buf))
+#define UNLOCK_BUF_LOG IFDEF(BIO_LOG, Log("\tUNLOCK_BUF(%d)", b - bcache.buf))
+
+#ifndef BIO_SPLIT_LOCK
+// #define LOCK_BUF Log("\t  LOCK_BUF(%d)", b - bcache.buf)
+// #define UNLOCK_BUF Log("\tUNLOCK_BUF(%d)", b - bcache.buf)
+#define LOCK_BUF
+#define UNLOCK_BUF
+#define LOCK_ALL acquire(&bcache.lock)
+#define UNLOCK_ALL release(&bcache.lock)
+#else
+#define LOCK_BUF                                                   \
+  do {                                                             \
+    IFDEF(BIO_SPLIT_LOCK,                                          \
+          acquire(&bcache.lock_bucket[(b - bcache.buf) % BIO_N])); \
+    IFDEF(BIO_SPLIT_LOCK, LOCK_BUF_LOG);                           \
+  } while (0)
+#define UNLOCK_BUF                                                 \
+  do {                                                             \
+    IFDEF(BIO_SPLIT_LOCK, UNLOCK_BUF_LOG);                         \
+    IFDEF(BIO_SPLIT_LOCK,                                          \
+          release(&bcache.lock_bucket[(b - bcache.buf) % BIO_N])); \
   } while (0)
 #define LOCK_ALL IFNDEF(BIO_SPLIT_LOCK, acquire(&bcache.lock))
 #define UNLOCK_ALL IFNDEF(BIO_SPLIT_LOCK, release(&bcache.lock))
+#endif
+
+#define BIO_LOCK_BUCKET (NBUF + 1)
+// #define BIO_N 1
+#define BIO_N BIO_LOCK_BUCKET
 
 struct {
   struct spinlock lock;
-  IFDEF(BIO_SPLIT_LOCK, struct spinlock lock_bucket[NBUF]);
+  IFDEF(BIO_SPLIT_LOCK, struct spinlock lock_bucket[BIO_LOCK_BUCKET]);
   struct buf buf[NBUF];
 
   // Linked list of all buffers, through prev/next.
@@ -54,8 +85,12 @@ void binit(void) {
 
   initlock(&bcache.lock, "bcache");
 #ifdef BIO_SPLIT_LOCK
-  for (int i = 0; i < NBUF; i++) {
-    initlock(&bcache.lock_bucket[i], "bcache_bucket");
+  char name_buf[256];
+  for (int i = 0; i < BIO_LOCK_BUCKET; i++) {
+    snprintf(name_buf, sizeof(name_buf), "bcache_bucket_%d", i);
+    Log("init lock %s", name_buf);
+    // initlock(&bcache.lock_bucket[i], "bcache_bucket");
+    initlock(&bcache.lock_bucket[i], name_buf);
   }
 #endif
 
