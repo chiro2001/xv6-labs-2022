@@ -70,6 +70,9 @@ void *kalloc(void) {
 
   int cid = cpuid();
   acquire(&kmem[cid].lock);
+  // if (cid != 0)
+  //   r = kmem[cid].freelist;
+  // else r = 0;
   r = kmem[cid].freelist;
   if (r) kmem[cid].freelist = r->next;
   release(&kmem[cid].lock);
