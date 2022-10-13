@@ -20,5 +20,10 @@ myapi.key
 xv6.out*
 .vagrant/
 submissions/
+
+.git-diff
+.submit
+submit.zip
+tmp/
 ph
 barrier

@@ -84,7 +84,12 @@ LD = $(TOOLPREFIX)ld
 OBJCOPY = $(TOOLPREFIX)objcopy
 OBJDUMP = $(TOOLPREFIX)objdump
 
-CFLAGS = -Wall -Werror -O -fno-omit-frame-pointer -ggdb
+CFLAGS = -Wall -Werror -fno-omit-frame-pointer -ggdb
+ifdef DEBUG
+CFLAGS += -O0
+else
+CFLAGS += -O
+endif
 
 ifdef LAB
 LABUPPER = $(shell echo $(LAB) | tr a-z A-Z)
@@ -175,9 +180,22 @@ UPROGS=\
 	$U/_grind\
 	$U/_wc\
 	$U/_zombie\
+	$U/_sleep\
+	$U/_pingpong\
+	$U/_primes\
+	$U/_find\
+	$U/_test\
+	$U/_xargs\
+	$U/_trace\
+	$U/_sysinfotest\
+	$U/_kvmtest\
 
 
-
+ifeq ($(LAB),trap)
+UPROGS += \
+	$U/_call\
+	$U/_alarmtest
+endif
 
 ifeq ($(LAB),$(filter $(LAB), pgtbl lock))
 UPROGS += \
@@ -241,13 +259,14 @@ ifeq ($(LAB),util)
 	UEXTRA += user/xargstest.sh
 endif
 
+FILE_SHRC=user/.shrc
 
-fs.img: mkfs/mkfs README $(UEXTRA) $(UPROGS)
-	mkfs/mkfs fs.img README $(UEXTRA) $(UPROGS)
+fs.img: mkfs/mkfs README $(UEXTRA) $(UPROGS) $(FILE_SHRC)
+	mkfs/mkfs fs.img README $(UEXTRA) $(UPROGS) $(FILE_SHRC)
 
 -include kernel/*.d user/*.d
 
-clean: 
+clean: docs-clean
 	rm -f *.tex *.dvi *.idx *.aux *.log *.ind *.ilg \
 	*/*.o */*.d */*.asm */*.sym \
 	$U/initcode $U/initcode.out $K/kernel fs.img \
@@ -386,5 +405,21 @@ myapi.key:
 		false; \
 	fi;
 
+submit: docs
+	@git diff 02e3ec08039bd06e5963444ac7d4a6a3140aa9ea HEAD --name-only > .git-diff
+	@mkdir -p .submit/code
+	@cat .git-diff | while read file; do mkdir -p .submit/code/$$file; rm -rf .submit/code/$$file; cp $$file .submit/code/$$file; done
+	@git format-patch 02e3ec08039bd06e5963444ac7d4a6a3140aa9ea -o .submit/patches
+	-@cp docs/lab*$(LAB)/*.pdf .submit/实验报告.pdf
+	@rm -rf submit.zip
+	@cd .submit && zip ../submit.zip -r .
+	-@rm -rf .submit
+	-@rm -rf .git-diff
 
-.PHONY: handin tarball tarball-pref clean grade handin-check
+docs:
+	$(MAKE) -C docs
+
+docs-%:
+	$(MAKE) -C docs $*
+
+.PHONY: handin tarball tarball-pref clean grade handin-check docs docs-%

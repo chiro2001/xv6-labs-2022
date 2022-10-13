@@ -1,3 +1,6 @@
+#ifndef _USER_USER_H_
+#define _USER_USER_H_
+
 struct stat;
 struct rtcdate;
 struct sysinfo;
@@ -24,6 +27,11 @@ int getpid(void);
 char* sbrk(int);
 int sleep(int);
 int uptime(void);
+int trace(int);
+struct sysinfo;
+int sysinfo(struct sysinfo*);
+int checkvm(void);
+
 #ifdef LAB_NET
 int connect(uint32, uint16, uint16);
 #endif
@@ -45,3 +53,7 @@ int atoi(const char*);
 int memcmp(const void *, const void *, uint);
 void *memcpy(void *, const void *, uint);
 int statistics(void*, int);
+
+#include "kernel/dbgconf.h"
+
+#endif // _USER_USER_H_

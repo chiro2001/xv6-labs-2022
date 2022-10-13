@@ -1,3 +1,6 @@
+#ifndef _KERNEL_DEFS_H_
+#define _KERNEL_DEFS_H_
+
 struct buf;
 struct context;
 struct file;
@@ -67,6 +70,8 @@ void            ramdiskrw(struct buf*);
 void*           kalloc(void);
 void            kfree(void *);
 void            kinit(void);
+uint32          kpageused(void);
+uint32          kpagefree(void);
 
 // log.c
 void            initlog(int, struct superblock*);
@@ -108,6 +113,10 @@ void            yield(void);
 int             either_copyout(int user_dst, uint64 dst, void *src, uint64 len);
 int             either_copyin(void *dst, int user_src, uint64 src, uint64 len);
 void            procdump(void);
+int             procn(void);
+
+// sysfile.c
+int             fdfree(void);
 
 // swtch.S
 void            swtch(struct context*, struct context*);
@@ -169,7 +178,10 @@ pagetable_t     uvmcreate(void);
 void            uvminit(pagetable_t, uchar *, uint);
 uint64          uvmalloc(pagetable_t, uint64, uint64);
 uint64          uvmdealloc(pagetable_t, uint64, uint64);
+#ifdef SOL_COW
+#else
 int             uvmcopy(pagetable_t, pagetable_t, uint64);
+#endif
 void            uvmfree(pagetable_t, uint64);
 void            uvmunmap(pagetable_t, uint64, uint64, int);
 void            uvmclear(pagetable_t, uint64);
@@ -177,6 +189,8 @@ uint64          walkaddr(pagetable_t, uint64);
 int             copyout(pagetable_t, uint64, char *, uint64);
 int             copyin(pagetable_t, char *, uint64, uint64);
 int             copyinstr(pagetable_t, char *, uint64, uint64);
+int             test_pagetable();
+void            vmprint(pagetable_t);
 
 // plic.c
 void            plicinit(void);
@@ -222,3 +236,18 @@ int             sockread(struct sock *, uint64, int);
 int             sockwrite(struct sock *, uint64, int);
 void            sockrecvudp(struct mbuf*, uint32, uint16, uint16);
 #endif
+
+// sys trace
+struct sys_trace_info {
+  struct proc* p;
+  int mask;
+};
+extern struct sys_trace_info sys_trace_info;
+extern int sys_trace_child_pids[];
+extern int sys_trace_child_pids_tail;
+
+extern const char syscall_names[][10];
+
+#include "kernel/dbgconf.h"
+
+#endif  // _KERNEL_DEFS_H_
