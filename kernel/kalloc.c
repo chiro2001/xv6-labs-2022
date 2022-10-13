@@ -8,6 +8,7 @@
 #include "spinlock.h"
 #include "riscv.h"
 #include "defs.h"
+#include "kernel/debug.h"
 
 void freerange(void *pa_start, void *pa_end);
 
@@ -24,12 +25,19 @@ struct {
 } kmem[NCPU];
 
 void kinit() {
-  initlock(&kmem[cpuid()].lock, "kmem");
+  const char lock_name_const[] = "kmem_hart ";
+  char lock_name[sizeof(lock_name_const)];
+  for (int i = 0; i < sizeof(lock_name_const); i++) {
+    lock_name[i] = lock_name_const[i];
+  }
+  lock_name[9] = cpuid() + '0';
+  initlock(&kmem[cpuid()].lock, lock_name);
+  Log("cpu[%d] lock init: %s; cpu %d", cpuid(), lock_name, cpuid());
   uint64 size = ((uint64)PHYSTOP - (uint64)end) / CPUS;
   freerange(end + size * cpuid(), end + size * (cpuid() + 1));
-  printf(
+  Log(
       "KMEM: [%p - %p], cpu %d [%p - %p], total %x PAGES, PGSIZE %x, cpu %x "
-      "PAGES\n",
+      "PAGES",
       end, PHYSTOP, cpuid(), end + size * cpuid(), end + size * (cpuid() + 1),
       ((uint64)PHYSTOP - (uint64)end) / PGSIZE, PGSIZE, size / PGSIZE);
 }
