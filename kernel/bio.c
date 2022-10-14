@@ -72,7 +72,7 @@ void binit(void) {
   for (int i = 0; i < BIO_N; i++) {
     snprintf(name_buf, sizeof(name_buf), "bcache_bucket_%d", i);
     // snprintf(name_buf, sizeof(name_buf), "bcache");
-    Log("init lock %s", name_buf);
+    // Log("init lock %s", name_buf);
     initlock(&bcache.lock_bucket[i], name_buf);
   }
 #endif

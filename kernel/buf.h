@@ -15,7 +15,5 @@ struct buf {
 
   // used in linked list
   int in_list;
-  // LRU
-  uint timestamp;
 };
 #endif
