@@ -27,7 +27,7 @@
 
 // #define BIO_LOG 1
 
-#define BIO_N 19
+#define BIO_N 7
 // #define BIO_N 1
 
 #define LOCK_BUF_LOG IFDEF(BIO_LOG, Log("\t  LOCK_BUF(%d)", blockno % BIO_N))
@@ -59,7 +59,7 @@
 struct {
   struct spinlock lock;
   IFDEF(BIO_SPLIT_LOCK, struct spinlock lock_bucket[BIO_N]);
-  struct buf buf[NBUF];
+  struct buf buf IFDEF(BIO_SPLIT_LOCK, [BIO_N])[NBUF];
 
   // Linked list of all buffers, through prev/next.
   // Sorted by how recently the buffer was used.
@@ -75,7 +75,6 @@ void binit(void) {
     snprintf(name_buf, sizeof(name_buf), "bcache_bucket_%d", i);
     // snprintf(name_buf, sizeof(name_buf), "bcache");
     Log("init lock %s", name_buf);
-    // initlock(&bcache.lock_bucket[i], "bcache_bucket");
     initlock(&bcache.lock_bucket[i], name_buf);
   }
 #endif
@@ -85,15 +84,15 @@ void binit(void) {
 #ifdef BIO_SPLIT_LOCK
   // generate BIO_N empty linked list
   for (int hash = 0; hash < BIO_N; hash++) {
-    bcache.head[hash].prev = 0;
-    bcache.head[hash].next = 0;
-  }
-  for (b = bcache.buf; b < bcache.buf + NBUF; b++) {
-    b->next = 0;
-    b->prev = 0;
-    b->in_list = 0;
-    b->timestamp = -1;
-    initsleeplock(&b->lock, "buffer");
+    bcache.head[hash].prev = &bcache.head[hash];
+    bcache.head[hash].next = &bcache.head[hash];
+    for (b = bcache.buf[hash]; b < bcache.buf[hash] + NBUF; b++) {
+      b->next = bcache.head[hash].next;
+      b->prev = &bcache.head[hash];
+      initsleeplock(&b->lock, "buffer");
+      bcache.head[hash].next->prev = b;
+      bcache.head[hash].next = b;
+    }
   }
 #else
   // generate a double linked list
@@ -145,7 +144,7 @@ static struct buf *bget(uint dev, uint blockno) {
       return b;
     }
     iter = b->next;
-    Assert(b != b->next, "Infty loop! %d", b - bcache.buf);
+    // Assert(b != b->next, "Infty loop! %d", b - bcache.buf);
     // Log("next - b = %d", b->next - b);
     UNLOCK_BUF;
   }
@@ -154,8 +153,8 @@ static struct buf *bget(uint dev, uint blockno) {
 
   // Not cached.
   // Recycle the least recently used (LRU) unused buffer.
-#ifndef BIO_SPLIT_LOCK
-  for (b = bcache.head.prev; b != &bcache.head; b = iter) {
+  for (b = bcache.head IFDEF(BIO_SPLIT_LOCK, [hash]).prev;
+       b != &bcache.head IFDEF(BIO_SPLIT_LOCK, [hash]); b = iter) {
     LOCK_BUF;
     if (b->refcnt == 0) {
       b->dev = dev;
@@ -171,44 +170,6 @@ static struct buf *bget(uint dev, uint blockno) {
     iter = b->prev;
     UNLOCK_BUF;
   }
-#else
-  // find a free buf that's not used resents
-  // LRU use timestamps
-  uint oldest_timestamp = -1;
-  struct buf *oldest = 0;
-  // global lock is necessary
-  LOCK_ALL_F;
-  for (b = bcache.buf; b < bcache.buf + NBUF; b++) {
-    if (b->refcnt == 0 && !b->in_list && b->timestamp <= oldest_timestamp) {
-      oldest = b;
-      oldest_timestamp = b->timestamp;
-    }
-  }
-  // UNLOCK_ALL_F;
-  if (oldest) {
-    // LOCK_BUF;
-    b = oldest;
-    b->timestamp = ticks;
-    b->in_list = 1;
-    b->dev = dev;
-    b->blockno = blockno;
-    b->valid = 0;
-    b->refcnt = 1;
-    // add to hashed link
-    b->next = bcache.head[hash].next;
-    bcache.head[hash].next = b;
-    // do not use prev to iterate list
-    b->prev = 0;
-    struct sleeplock *lock = &b->lock;
-    // UNLOCK_BUF;
-    UNLOCK_ALL_F;
-    acquiresleep(lock);
-    return b;
-  } else {
-    Err("cannot find oldest! ticks: %d", ticks);
-  }
-  UNLOCK_ALL_F;
-#endif
   panic("bget: no buffers");
 }
 
@@ -244,29 +205,12 @@ void brelse(struct buf *b) {
   b->refcnt--;
   if (b->refcnt == 0) {
     // no one is waiting for it.
-#ifndef BIO_SPLIT_LOCK
     b->next->prev = b->prev;
     b->prev->next = b->next;
     b->next = bcache.head IFDEF(BIO_SPLIT_LOCK, [hash]).next;
     b->prev = &bcache.head IFDEF(BIO_SPLIT_LOCK, [hash]);
     bcache.head IFDEF(BIO_SPLIT_LOCK, [hash]).next->prev = b;
     bcache.head IFDEF(BIO_SPLIT_LOCK, [hash]).next = b;
-#else
-    // remove item from linked list
-    struct buf *p = &bcache.head[hash];
-    while (p && p->next) {
-      struct buf *n = p->next;
-      if (n->blockno == b->blockno && n->dev == b->dev) {
-        // LOCK_ALL_F;
-        p->next = n->next;
-        n->in_list = 0;
-        n->timestamp = -1;
-        n->next = 0;
-        // UNLOCK_ALL_F;
-      }
-      p = p->next;
-    }
-#endif
   }
   UNLOCK_ALL;
   UNLOCK_BUF;
