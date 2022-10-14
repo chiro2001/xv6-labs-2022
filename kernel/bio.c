@@ -40,8 +40,8 @@
 
 #define OPHASH IFDEF(BIO_SPLIT_LOCK, [hash])
 
-#define LOCK_ALL IFDEF(BIO_SPLIT_LOCK, LOCK_ALL_F)
-#define UNLOCK_ALL IFDEF(BIO_SPLIT_LOCK, UNLOCK_ALL_F)
+#define LOCK_ALL IFNDEF(BIO_SPLIT_LOCK, LOCK_ALL_F)
+#define UNLOCK_ALL IFNDEF(BIO_SPLIT_LOCK, UNLOCK_ALL_F)
 
 #define LOCK_GRP                                               \
   do {                                                         \
@@ -62,7 +62,7 @@ struct {
   // Linked list of all buffers, through prev/next.
   // Sorted by how recently the buffer was used.
   // head.next is most recent, head.prev is least.
-  MUXDEF(BIO_SPLIT_LOCK, struct buf head[BIO_N], struct buf head);
+  struct buf head IFDEF(BIO_SPLIT_LOCK, [BIO_N]);
 } bcache;
 
 void binit(void) {
