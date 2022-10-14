@@ -26,8 +26,8 @@
 // print log
 // #define BIO_LOG 1
 
-#define LOCK_BUF_LOG IFDEF(BIO_LOG, Log("\t  LOCK_BUF(%d)", hash))
-#define UNLOCK_BUF_LOG IFDEF(BIO_LOG, Log("\tUNLOCK_BUF(%d)", hash))
+#define LOCK_GRP_LOG IFDEF(BIO_LOG, Log("\t  LOCK_GRP(%d)", hash))
+#define UNLOCK_GRP_LOG IFDEF(BIO_LOG, Log("\tUNLOCK_GRP(%d)", hash))
 #define DEF_HASH IFDEF(BIO_SPLIT_LOCK, int hash = b->blockno % BIO_N)
 
 #define LOCK_ALL_F acquire(&bcache.lock)
@@ -36,19 +36,19 @@
 #define OPHASH IFDEF(BIO_SPLIT_LOCK, [hash])
 
 #ifndef BIO_SPLIT_LOCK
-#define LOCK_BUF
-#define UNLOCK_BUF
+#define LOCK_GRP
+#define UNLOCK_GRP
 #define LOCK_ALL LOCK_ALL_F
 #define UNLOCK_ALL UNLOCK_ALL_F
 #else
-#define LOCK_BUF                                               \
+#define LOCK_GRP                                               \
   do {                                                         \
     IFDEF(BIO_SPLIT_LOCK, acquire(&bcache.lock_bucket[hash])); \
-    IFDEF(BIO_SPLIT_LOCK, LOCK_BUF_LOG);                       \
+    IFDEF(BIO_SPLIT_LOCK, LOCK_GRP_LOG);                       \
   } while (0)
-#define UNLOCK_BUF                                             \
+#define UNLOCK_GRP                                             \
   do {                                                         \
-    IFDEF(BIO_SPLIT_LOCK, UNLOCK_BUF_LOG);                     \
+    IFDEF(BIO_SPLIT_LOCK, UNLOCK_GRP_LOG);                     \
     IFDEF(BIO_SPLIT_LOCK, release(&bcache.lock_bucket[hash])); \
   } while (0)
 #define LOCK_ALL IFNDEF(BIO_SPLIT_LOCK, acquire(&bcache.lock))
@@ -69,12 +69,12 @@ struct {
 void binit(void) {
   initlock(&bcache.lock, "bcache");
 #ifdef BIO_SPLIT_LOCK
-  char name_buf[256];
+  char name_grp[256];
   for (int i = 0; i < BIO_N; i++) {
-    snprintf(name_buf, sizeof(name_buf), "bcache_bucket_%d", i);
-    // snprintf(name_buf, sizeof(name_buf), "bcache");
-    // Log("init lock %s", name_buf);
-    initlock(&bcache.lock_bucket[i], name_buf);
+    snprintf(name_grp, sizeof(name_grp), "bcache_bucket_%d", i);
+    // snprintf(name_grp, sizeof(name_grp), "bcache");
+    // Log("init lock %s", name_grp);
+    initlock(&bcache.lock_bucket[i], name_grp);
   }
 #endif
 
@@ -85,7 +85,7 @@ void binit(void) {
    *         prev│       │ │      │ │      │  │
    *        ┌────┴───┬───▼─┴──┬───▼─┴──┬───▼──┴─┐
    *        │ 0      │ 1      │ 2      │ 3      │
-   * buf[][]│        │        │        │        │
+   * buf    │        │        │        │        │
    *        │        │        │        │        │
    *        │        │        │        │        │
    *        └──┬──▲──┴───┬──▲─┴───┬──▲─┴───┬────┘
@@ -122,36 +122,38 @@ static struct buf *bget(uint dev, uint blockno) {
   // Is the block already cached?
   struct buf *iter;
   for (b = bcache.head OPHASH.next; b != &bcache.head OPHASH; b = iter) {
-    LOCK_BUF;
+    LOCK_GRP;
     if (b->dev == dev && b->blockno == blockno) {
       b->refcnt++;
       struct sleeplock *lock = &b->lock;
-      UNLOCK_BUF;
+      UNLOCK_GRP;
       UNLOCK_ALL;
       acquiresleep(lock);
       return b;
     }
     iter = b->next;
-    UNLOCK_BUF;
+    Assert(iter != b, "Dead loop! ticks: %d", ticks);
+    UNLOCK_GRP;
   }
 
   // Not cached.
   // Recycle the least recently used (LRU) unused buffer.
   for (b = bcache.head OPHASH.prev; b != &bcache.head OPHASH; b = iter) {
-    LOCK_BUF;
+    LOCK_GRP;
     if (b->refcnt == 0) {
       b->dev = dev;
       b->blockno = blockno;
       b->valid = 0;
       b->refcnt = 1;
       struct sleeplock *lock = &b->lock;
-      UNLOCK_BUF;
+      UNLOCK_GRP;
       UNLOCK_ALL;
       acquiresleep(lock);
       return b;
     }
     iter = b->prev;
-    UNLOCK_BUF;
+    Assert(iter != b, "Dead loop! ticks: %d", ticks);
+    UNLOCK_GRP;
   }
   panic("bget: no buffers");
 }
@@ -183,7 +185,7 @@ void brelse(struct buf *b) {
 
   DEF_HASH;
   LOCK_ALL;
-  LOCK_BUF;
+  LOCK_GRP;
   b->refcnt--;
   if (b->refcnt == 0) {
     // no one is waiting for it.
@@ -195,23 +197,23 @@ void brelse(struct buf *b) {
     bcache.head OPHASH.next = b;
   }
   UNLOCK_ALL;
-  UNLOCK_BUF;
+  UNLOCK_GRP;
 }
 
 void bpin(struct buf *b) {
   DEF_HASH;
-  LOCK_BUF;
+  LOCK_GRP;
   LOCK_ALL;
   b->refcnt++;
   UNLOCK_ALL;
-  UNLOCK_BUF;
+  UNLOCK_GRP;
 }
 
 void bunpin(struct buf *b) {
   DEF_HASH;
-  LOCK_BUF;
+  LOCK_GRP;
   LOCK_ALL;
   b->refcnt--;
   UNLOCK_ALL;
-  UNLOCK_BUF;
+  UNLOCK_GRP;
 }
