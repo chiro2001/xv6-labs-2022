@@ -23,12 +23,8 @@
 #include "spinlock.h"
 #include "types.h"
 
-#define BIO_SPLIT_LOCK 1
-
+// print log
 // #define BIO_LOG 1
-
-#define BIO_N 7
-// #define BIO_N 1
 
 #define LOCK_BUF_LOG IFDEF(BIO_LOG, Log("\t  LOCK_BUF(%d)", blockno % BIO_N))
 #define UNLOCK_BUF_LOG IFDEF(BIO_LOG, Log("\tUNLOCK_BUF(%d)", blockno % BIO_N))
@@ -83,6 +79,18 @@ void binit(void) {
 
   // Create linked list of buffers
   struct buf *b;
+  /*
+   *             ┌───────┐ ┌──────┐ ┌──────┐  ┌────►&head
+   *         prev│       │ │      │ │      │  │
+   *        ┌────┴───┬───▼─┴──┬───▼─┴──┬───▼──┴─┐
+   *        │ 0      │ 1      │ 2      │ 3      │
+   * buf[][]│        │        │        │        │
+   *        │        │        │        │        │
+   *        │        │        │        │        │
+   *        └──┬──▲──┴───┬──▲─┴───┬──▲─┴───┬────┘
+   *           │  │ next │  │     │  │     │
+   * &head◄────┘  └──────┘  └─────┘  └─────┘
+   */
 #ifdef BIO_SPLIT_LOCK
   // generate BIO_N empty linked list
   for (int hash = 0; hash < BIO_N; hash++) {
@@ -98,29 +106,6 @@ void binit(void) {
     }
 #ifdef BIO_SPLIT_LOCK
   }
-#else
-  // generate a double linked list
-  /*
-   *             ┌───────┐ ┌──────┐ ┌──────┐  ┌────►&head
-   *         prev│       │ │      │ │      │  │
-   *        ┌────┴───┬───▼─┴──┬───▼─┴──┬───▼──┴─┐
-   *        │ 0      │ 1      │ 2      │ 3      │
-   *   buf[]│        │        │        │        │
-   *        │        │        │        │        │
-   *        │        │        │        │        │
-   *        └──┬──▲──┴───┬──▲─┴───┬──▲─┴───┬────┘
-   *           │  │ next │  │     │  │     │
-   * &head◄────┘  └──────┘  └─────┘  └─────┘
-   */
-  bcache.head.prev = &bcache.head;
-  bcache.head.next = &bcache.head;
-  for (b = bcache.buf; b < bcache.buf + NBUF; b++) {
-    b->next = bcache.head.next;
-    b->prev = &bcache.head;
-    initsleeplock(&b->lock, "buffer");
-    bcache.head.next->prev = b;
-    bcache.head.next = b;
-  }
 #endif
 }
 
@@ -135,30 +120,23 @@ static struct buf *bget(uint dev, uint blockno) {
   IFDEF(BIO_SPLIT_LOCK, int hash = blockno % BIO_N);
   // Is the block already cached?
   struct buf *iter;
-  for (b = bcache.head OPHASH.next;
-       b != &bcache.head OPHASH && b; b = iter) {
+  for (b = bcache.head OPHASH.next; b != &bcache.head OPHASH && b; b = iter) {
     LOCK_BUF;
     if (b->dev == dev && b->blockno == blockno) {
       b->refcnt++;
       struct sleeplock *lock = &b->lock;
-      // Log("bget(%d, %d): cached", dev, blockno);
       UNLOCK_BUF;
       UNLOCK_ALL;
       acquiresleep(lock);
       return b;
     }
     iter = b->next;
-    // Assert(b != b->next, "Infty loop! %d", b - bcache.buf);
-    // Log("next - b = %d", b->next - b);
     UNLOCK_BUF;
   }
 
-  // Log("bget(%d, %d): no cached", dev, blockno);
-
   // Not cached.
   // Recycle the least recently used (LRU) unused buffer.
-  for (b = bcache.head OPHASH.prev;
-       b != &bcache.head OPHASH; b = iter) {
+  for (b = bcache.head OPHASH.prev; b != &bcache.head OPHASH; b = iter) {
     LOCK_BUF;
     if (b->refcnt == 0) {
       b->dev = dev;

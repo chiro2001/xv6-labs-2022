@@ -22,4 +22,9 @@
 // Split kmem to every cpu cores
 #define KMEM_SPLIT 1
 
+// Split block cache locks
+#define BIO_SPLIT_LOCK 1
+// Split block cache into N groups
+#define BIO_N 7
+
 #endif  // _INC_PARAM_H
