@@ -26,8 +26,9 @@
 // print log
 // #define BIO_LOG 1
 
-#define LOCK_BUF_LOG IFDEF(BIO_LOG, Log("\t  LOCK_BUF(%d)", blockno % BIO_N))
-#define UNLOCK_BUF_LOG IFDEF(BIO_LOG, Log("\tUNLOCK_BUF(%d)", blockno % BIO_N))
+#define LOCK_BUF_LOG IFDEF(BIO_LOG, Log("\t  LOCK_BUF(%d)", hash))
+#define UNLOCK_BUF_LOG IFDEF(BIO_LOG, Log("\tUNLOCK_BUF(%d)", hash))
+#define DEF_HASH IFDEF(BIO_SPLIT_LOCK, int hash = b->blockno % BIO_N)
 
 #define LOCK_ALL_F acquire(&bcache.lock)
 #define UNLOCK_ALL_F release(&bcache.lock)
@@ -40,15 +41,15 @@
 #define LOCK_ALL LOCK_ALL_F
 #define UNLOCK_ALL UNLOCK_ALL_F
 #else
-#define LOCK_BUF                                                          \
-  do {                                                                    \
-    IFDEF(BIO_SPLIT_LOCK, acquire(&bcache.lock_bucket[blockno % BIO_N])); \
-    IFDEF(BIO_SPLIT_LOCK, LOCK_BUF_LOG);                                  \
+#define LOCK_BUF                                               \
+  do {                                                         \
+    IFDEF(BIO_SPLIT_LOCK, acquire(&bcache.lock_bucket[hash])); \
+    IFDEF(BIO_SPLIT_LOCK, LOCK_BUF_LOG);                       \
   } while (0)
-#define UNLOCK_BUF                                                        \
-  do {                                                                    \
-    IFDEF(BIO_SPLIT_LOCK, UNLOCK_BUF_LOG);                                \
-    IFDEF(BIO_SPLIT_LOCK, release(&bcache.lock_bucket[blockno % BIO_N])); \
+#define UNLOCK_BUF                                             \
+  do {                                                         \
+    IFDEF(BIO_SPLIT_LOCK, UNLOCK_BUF_LOG);                     \
+    IFDEF(BIO_SPLIT_LOCK, release(&bcache.lock_bucket[hash])); \
   } while (0)
 #define LOCK_ALL IFNDEF(BIO_SPLIT_LOCK, acquire(&bcache.lock))
 #define UNLOCK_ALL IFNDEF(BIO_SPLIT_LOCK, release(&bcache.lock))
@@ -120,7 +121,7 @@ static struct buf *bget(uint dev, uint blockno) {
   IFDEF(BIO_SPLIT_LOCK, int hash = blockno % BIO_N);
   // Is the block already cached?
   struct buf *iter;
-  for (b = bcache.head OPHASH.next; b != &bcache.head OPHASH && b; b = iter) {
+  for (b = bcache.head OPHASH.next; b != &bcache.head OPHASH; b = iter) {
     LOCK_BUF;
     if (b->dev == dev && b->blockno == blockno) {
       b->refcnt++;
@@ -180,8 +181,7 @@ void brelse(struct buf *b) {
 
   releasesleep(&b->lock);
 
-  IFDEF(BIO_SPLIT_LOCK, int blockno = b->blockno);
-  IFDEF(BIO_SPLIT_LOCK, int hash = blockno % BIO_N);
+  DEF_HASH;
   LOCK_ALL;
   LOCK_BUF;
   b->refcnt--;
@@ -199,7 +199,7 @@ void brelse(struct buf *b) {
 }
 
 void bpin(struct buf *b) {
-  IFDEF(BIO_SPLIT_LOCK, int blockno = b->blockno);
+  DEF_HASH;
   LOCK_BUF;
   LOCK_ALL;
   b->refcnt++;
@@ -208,7 +208,7 @@ void bpin(struct buf *b) {
 }
 
 void bunpin(struct buf *b) {
-  IFDEF(BIO_SPLIT_LOCK, int blockno = b->blockno);
+  DEF_HASH;
   LOCK_BUF;
   LOCK_ALL;
   b->refcnt--;
