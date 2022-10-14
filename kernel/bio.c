@@ -72,7 +72,6 @@ void binit(void) {
   char name_grp[256];
   for (int i = 0; i < BIO_N; i++) {
     snprintf(name_grp, sizeof(name_grp), "bcache_bucket_%d", i);
-    // snprintf(name_grp, sizeof(name_grp), "bcache");
     // Log("init lock %s", name_grp);
     initlock(&bcache.lock_bucket[i], name_grp);
   }
