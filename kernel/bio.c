@@ -23,7 +23,7 @@
 #include "spinlock.h"
 #include "types.h"
 
-// #define BIO_SPLIT_LOCK 1
+#define BIO_SPLIT_LOCK 1
 
 // #define BIO_LOG 1
 
@@ -132,7 +132,7 @@ static struct buf *bget(uint dev, uint blockno) {
   // Is the block already cached?
   struct buf *iter;
   for (b = bcache.head IFDEF(BIO_SPLIT_LOCK, [hash]).next;
-       b != &bcache.head IFDEF(BIO_SPLIT_LOCK, [hash]) && b && 0; b = iter) {
+       b != &bcache.head IFDEF(BIO_SPLIT_LOCK, [hash]) && b; b = iter) {
     LOCK_BUF;
     if (b->dev == dev && b->blockno == blockno) {
       b->refcnt++;
