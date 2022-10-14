@@ -12,5 +12,10 @@ struct buf {
   struct buf *prev;  // LRU cache list
   struct buf *next;
   uchar data[BSIZE];
+
+  // used in linked list
+  int in_list;
+  // LRU
+  uint timestamp;
 };
 #endif

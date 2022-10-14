@@ -41,10 +41,9 @@ void kinit() {
   Log("cpu[%d] lock init: %s; cpu %d", cid, lock_name, cid);
   uint64 size = ((uint64)PHYSTOP - (uint64)end) / KMEM_CPUS;
   freerange(end + size * cid, end + size * (cid + 1));
-  Log("KMEM: [%p - %p], cpu %d [%p - %p], total %x PAGES, PGSIZE %x, cpu %x "
-      "PAGES",
+  Log("KMEM: [%p - %p], cpu %d [%p - %p], PAGES [%x/%x]", 
       end, PHYSTOP, cid, end + size * cid, end + size * (cid + 1),
-      ((uint64)PHYSTOP - (uint64)end) / PGSIZE, PGSIZE, size / PGSIZE);
+      size / PGSIZE, ((uint64)PHYSTOP - (uint64)end) / PGSIZE);
 }
 
 void freerange(void *pa_start, void *pa_end) {

@@ -59,7 +59,6 @@
 struct {
   struct spinlock lock;
   IFDEF(BIO_SPLIT_LOCK, struct spinlock lock_bucket[BIO_N]);
-  IFDEF(BIO_SPLIT_LOCK, int buf_use[NBUF]);
   struct buf buf[NBUF];
 
   // Linked list of all buffers, through prev/next.
@@ -73,7 +72,8 @@ void binit(void) {
 #ifdef BIO_SPLIT_LOCK
   char name_buf[256];
   for (int i = 0; i < BIO_N; i++) {
-    snprintf(name_buf, sizeof(name_buf), "bcache_bucket_%d", i);
+    // snprintf(name_buf, sizeof(name_buf), "bcache_bucket_%d", i);
+    snprintf(name_buf, sizeof(name_buf), "bcache");
     Log("init lock %s", name_buf);
     // initlock(&bcache.lock_bucket[i], "bcache_bucket");
     initlock(&bcache.lock_bucket[i], name_buf);
@@ -88,10 +88,11 @@ void binit(void) {
     bcache.head[hash].prev = 0;
     bcache.head[hash].next = 0;
   }
-  for (int i = 0; i < NBUF; i++) bcache.buf_use[i] = 0;
   for (b = bcache.buf; b < bcache.buf + NBUF; b++) {
     b->next = 0;
     b->prev = 0;
+    b->in_list = 0;
+    b->timestamp = -1;
     initsleeplock(&b->lock, "buffer");
   }
 #else
@@ -144,7 +145,7 @@ static struct buf *bget(uint dev, uint blockno) {
       return b;
     }
     iter = b->next;
-    Assert(b != b->next, "Infty loop! %d", b - bcache.buf);
+    // Assert(b != b->next, "Infty loop! %d", b - bcache.buf);
     // Log("next - b = %d", b->next - b);
     UNLOCK_BUF;
   }
@@ -172,39 +173,60 @@ static struct buf *bget(uint dev, uint blockno) {
   }
 #else
   LOCK_ALL_F;
-  // find all buf that's free
+  // LOCK_BUF;
+  // find a free buf that's not used resents
+  uint oldest_timestamp = -1;
+  struct buf *oldest = 0;
   for (b = bcache.buf; b < bcache.buf + NBUF; b++) {
-    // Log("b=%p, b->refcnt = %d, hash = %d", b, b->refcnt, hash);
-    if (b->refcnt == 0 && !bcache.buf_use[b - bcache.buf]) {
-      bcache.buf_use[b - bcache.buf] = 1;
-      b->dev = dev;
-      b->blockno = blockno;
-      b->valid = 0;
-      b->refcnt = 1;
-      // add to hashed link
-      b->next = bcache.head[hash].next;
-      bcache.head[hash].next = b;
-      // do not use prev to iterate list
-      b->prev = 0;
-      struct sleeplock *lock = &b->lock;
-      UNLOCK_ALL_F;
-      acquiresleep(lock);
-      return b;
+    if (b->refcnt == 0 && !b->in_list && b->timestamp <= oldest_timestamp) {
+      oldest = b;
+      oldest_timestamp = b->timestamp;
     }
   }
+  if (oldest) {
+    b = oldest;
+    b->timestamp = ticks;
+    b->in_list = 1;
+    b->dev = dev;
+    b->blockno = blockno;
+    b->valid = 0;
+    b->refcnt = 1;
+    // add to hashed link
+    b->next = bcache.head[hash].next;
+    bcache.head[hash].next = b;
+    // do not use prev to iterate list
+    b->prev = 0;
+    struct sleeplock *lock = &b->lock;
+    UNLOCK_ALL_F;
+    // UNLOCK_BUF;
+    acquiresleep(lock);
+    return b;
+  } else {
+    Err("cannot find oldest! ticks: %d", ticks);
+  }
+
+  // for (b = bcache.buf; b < bcache.buf + NBUF; b++) {
+  //   if (b->refcnt == 0 && !b->in_list) {
+  //     b->in_list = 1;
+  //     b->dev = dev;
+  //     b->blockno = blockno;
+  //     b->valid = 0;
+  //     b->refcnt = 1;
+  //     // add to hashed link
+  //     b->next = bcache.head[hash].next;
+  //     bcache.head[hash].next = b;
+  //     // do not use prev to iterate list
+  //     b->prev = 0;
+  //     struct sleeplock *lock = &b->lock;
+  //     // Log("bget: create; ticks %d", ticks);
+  //     UNLOCK_ALL_F;
+  //     acquiresleep(lock);
+  //     return b;
+  //   }
+  // }
+
   UNLOCK_ALL_F;
 #endif
-  // Err("bget: no buffers! hash=%d", hash);
-  // printf("refcnt = [");
-  // for (b = bcache.buf; b < bcache.buf + NBUF; b++) {
-  //   printf("%d, ", b->refcnt);
-  // }
-  // printf("]\n");
-  // printf("buf_use = [");
-  // for (b = bcache.buf; b < bcache.buf + NBUF; b++) {
-  //   printf("%d, ", bcache.buf_use[b - bcache.buf]);
-  // }
-  // printf("]\n");
   panic("bget: no buffers");
 }
 
@@ -254,7 +276,8 @@ void brelse(struct buf *b) {
       struct buf *n = p->next;
       if (n->blockno == b->blockno && n->dev == b->dev) {
         p->next = n->next;
-        bcache.buf_use[n - bcache.buf] = 0;
+        n->in_list = 0;
+        n->timestamp = -1;
       }
       p = p->next;
     }
