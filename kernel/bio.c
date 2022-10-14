@@ -59,6 +59,7 @@
 struct {
   struct spinlock lock;
   IFDEF(BIO_SPLIT_LOCK, struct spinlock lock_bucket[BIO_N]);
+  IFDEF(BIO_SPLIT_LOCK, int buf_use[NBUF]);
   struct buf buf[NBUF];
 
   // Linked list of all buffers, through prev/next.
@@ -87,6 +88,7 @@ void binit(void) {
     bcache.head[hash].prev = 0;
     bcache.head[hash].next = 0;
   }
+  for (int i = 0; i < NBUF; i++) bcache.buf_use[i] = 0;
   for (b = bcache.buf; b < bcache.buf + NBUF; b++) {
     b->next = 0;
     b->prev = 0;
@@ -173,7 +175,8 @@ static struct buf *bget(uint dev, uint blockno) {
   // find all buf that's free
   for (b = bcache.buf; b < bcache.buf + NBUF; b++) {
     // Log("b=%p, b->refcnt = %d, hash = %d", b, b->refcnt, hash);
-    if (b->refcnt == 0) {
+    if (b->refcnt == 0 && !bcache.buf_use[b - bcache.buf]) {
+      bcache.buf_use[b - bcache.buf] = 1;
       b->dev = dev;
       b->blockno = blockno;
       b->valid = 0;
@@ -190,6 +193,17 @@ static struct buf *bget(uint dev, uint blockno) {
   }
   UNLOCK_ALL_F;
 #endif
+  Err("bget: no buffers! hash=%d", hash);
+  printf("refcnt = [");
+  for (b = bcache.buf; b < bcache.buf + NBUF; b++) {
+    printf("%d, ", b->refcnt);
+  }
+  printf("]\n");
+  printf("buf_use = [");
+  for (b = bcache.buf; b < bcache.buf + NBUF; b++) {
+    printf("%d, ", bcache.buf_use[b - bcache.buf]);
+  }
+  printf("]\n");
   panic("bget: no buffers");
 }
 
@@ -239,6 +253,7 @@ void brelse(struct buf *b) {
       struct buf *n = p->next;
       if (n->blockno == b->blockno && n->dev == b->dev) {
         p->next = n->next;
+        bcache.buf_use[n - bcache.buf] = 0;
       }
       p = p->next;
     }
