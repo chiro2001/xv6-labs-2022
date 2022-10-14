@@ -26,8 +26,13 @@
 // print log
 // #define BIO_LOG 1
 
-#define LOCK_GRP_LOG IFDEF(BIO_LOG, Log("\t  LOCK_GRP(%d)", hash))
-#define UNLOCK_GRP_LOG IFDEF(BIO_LOG, Log("\tUNLOCK_GRP(%d)", hash))
+#ifdef BIO_LOG
+#define LOCK_GRP_LOG Log("\t  LOCK_GRP(%d)", hash)
+#define UNLOCK_GRP_LOG Log("\tUNLOCK_GRP(%d)", hash)
+#else
+#define LOCK_GRP_LOG
+#define UNLOCK_GRP_LOG
+#endif
 #define DEF_HASH IFDEF(BIO_SPLIT_LOCK, int hash = b->blockno % BIO_N)
 
 #define LOCK_ALL_F acquire(&bcache.lock)
@@ -35,25 +40,19 @@
 
 #define OPHASH IFDEF(BIO_SPLIT_LOCK, [hash])
 
-#ifndef BIO_SPLIT_LOCK
-#define LOCK_GRP
-#define UNLOCK_GRP
-#define LOCK_ALL LOCK_ALL_F
-#define UNLOCK_ALL UNLOCK_ALL_F
-#else
+#define LOCK_ALL IFDEF(BIO_SPLIT_LOCK, LOCK_ALL_F)
+#define UNLOCK_ALL IFDEF(BIO_SPLIT_LOCK, UNLOCK_ALL_F)
+
 #define LOCK_GRP                                               \
   do {                                                         \
     IFDEF(BIO_SPLIT_LOCK, acquire(&bcache.lock_bucket[hash])); \
-    IFDEF(BIO_SPLIT_LOCK, LOCK_GRP_LOG);                       \
+    LOCK_GRP_LOG;                                              \
   } while (0)
 #define UNLOCK_GRP                                             \
   do {                                                         \
-    IFDEF(BIO_SPLIT_LOCK, UNLOCK_GRP_LOG);                     \
+    UNLOCK_GRP_LOG;                                            \
     IFDEF(BIO_SPLIT_LOCK, release(&bcache.lock_bucket[hash])); \
   } while (0)
-#define LOCK_ALL IFNDEF(BIO_SPLIT_LOCK, acquire(&bcache.lock))
-#define UNLOCK_ALL IFNDEF(BIO_SPLIT_LOCK, release(&bcache.lock))
-#endif
 
 struct {
   struct spinlock lock;
