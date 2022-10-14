@@ -36,6 +36,8 @@
 #define LOCK_ALL_F acquire(&bcache.lock)
 #define UNLOCK_ALL_F release(&bcache.lock)
 
+#define OPHASH IFDEF(BIO_SPLIT_LOCK, [hash])
+
 #ifndef BIO_SPLIT_LOCK
 #define LOCK_BUF
 #define UNLOCK_BUF
@@ -84,15 +86,17 @@ void binit(void) {
 #ifdef BIO_SPLIT_LOCK
   // generate BIO_N empty linked list
   for (int hash = 0; hash < BIO_N; hash++) {
-    bcache.head[hash].prev = &bcache.head[hash];
-    bcache.head[hash].next = &bcache.head[hash];
-    for (b = bcache.buf[hash]; b < bcache.buf[hash] + NBUF; b++) {
-      b->next = bcache.head[hash].next;
-      b->prev = &bcache.head[hash];
+#endif
+    bcache.head OPHASH.prev = &bcache.head OPHASH;
+    bcache.head OPHASH.next = &bcache.head OPHASH;
+    for (b = bcache.buf OPHASH; b < bcache.buf OPHASH + NBUF; b++) {
+      b->next = bcache.head OPHASH.next;
+      b->prev = &bcache.head OPHASH;
       initsleeplock(&b->lock, "buffer");
-      bcache.head[hash].next->prev = b;
-      bcache.head[hash].next = b;
+      bcache.head OPHASH.next->prev = b;
+      bcache.head OPHASH.next = b;
     }
+#ifdef BIO_SPLIT_LOCK
   }
 #else
   // generate a double linked list
@@ -131,8 +135,8 @@ static struct buf *bget(uint dev, uint blockno) {
   IFDEF(BIO_SPLIT_LOCK, int hash = blockno % BIO_N);
   // Is the block already cached?
   struct buf *iter;
-  for (b = bcache.head IFDEF(BIO_SPLIT_LOCK, [hash]).next;
-       b != &bcache.head IFDEF(BIO_SPLIT_LOCK, [hash]) && b; b = iter) {
+  for (b = bcache.head OPHASH.next;
+       b != &bcache.head OPHASH && b; b = iter) {
     LOCK_BUF;
     if (b->dev == dev && b->blockno == blockno) {
       b->refcnt++;
@@ -153,8 +157,8 @@ static struct buf *bget(uint dev, uint blockno) {
 
   // Not cached.
   // Recycle the least recently used (LRU) unused buffer.
-  for (b = bcache.head IFDEF(BIO_SPLIT_LOCK, [hash]).prev;
-       b != &bcache.head IFDEF(BIO_SPLIT_LOCK, [hash]); b = iter) {
+  for (b = bcache.head OPHASH.prev;
+       b != &bcache.head OPHASH; b = iter) {
     LOCK_BUF;
     if (b->refcnt == 0) {
       b->dev = dev;
@@ -207,10 +211,10 @@ void brelse(struct buf *b) {
     // no one is waiting for it.
     b->next->prev = b->prev;
     b->prev->next = b->next;
-    b->next = bcache.head IFDEF(BIO_SPLIT_LOCK, [hash]).next;
-    b->prev = &bcache.head IFDEF(BIO_SPLIT_LOCK, [hash]);
-    bcache.head IFDEF(BIO_SPLIT_LOCK, [hash]).next->prev = b;
-    bcache.head IFDEF(BIO_SPLIT_LOCK, [hash]).next = b;
+    b->next = bcache.head OPHASH.next;
+    b->prev = &bcache.head OPHASH;
+    bcache.head OPHASH.next->prev = b;
+    bcache.head OPHASH.next = b;
   }
   UNLOCK_ALL;
   UNLOCK_BUF;
