@@ -15,7 +15,10 @@ endif
 
 all: $(PDF)
 
-$(PDF): $(REQUIRE) FORCE
+images:
+	cp -R ../lab*/*.assets .
+
+$(PDF): $(REQUIRE) images FORCE
 	$(LATEX) $(ARGS) $(PAPER).tex
 	cp $(PDF) "../$(LAB)/$(TITLE).pdf"
 
@@ -23,4 +26,4 @@ clean:
 	-rm -rf $(TEMP)
 
 FORCE:
-.PHONY: all clean FORCE
+.PHONY: all clean images FORCE
