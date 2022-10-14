@@ -72,8 +72,8 @@ void binit(void) {
 #ifdef BIO_SPLIT_LOCK
   char name_buf[256];
   for (int i = 0; i < BIO_N; i++) {
-    // snprintf(name_buf, sizeof(name_buf), "bcache_bucket_%d", i);
-    snprintf(name_buf, sizeof(name_buf), "bcache");
+    snprintf(name_buf, sizeof(name_buf), "bcache_bucket_%d", i);
+    // snprintf(name_buf, sizeof(name_buf), "bcache");
     Log("init lock %s", name_buf);
     // initlock(&bcache.lock_bucket[i], "bcache_bucket");
     initlock(&bcache.lock_bucket[i], name_buf);
@@ -145,7 +145,7 @@ static struct buf *bget(uint dev, uint blockno) {
       return b;
     }
     iter = b->next;
-    // Assert(b != b->next, "Infty loop! %d", b - bcache.buf);
+    Assert(b != b->next, "Infty loop! %d", b - bcache.buf);
     // Log("next - b = %d", b->next - b);
     UNLOCK_BUF;
   }
@@ -172,18 +172,21 @@ static struct buf *bget(uint dev, uint blockno) {
     UNLOCK_BUF;
   }
 #else
-  LOCK_ALL_F;
-  // LOCK_BUF;
   // find a free buf that's not used resents
+  // LRU use timestamps
   uint oldest_timestamp = -1;
   struct buf *oldest = 0;
+  // global lock is necessary
+  LOCK_ALL_F;
   for (b = bcache.buf; b < bcache.buf + NBUF; b++) {
     if (b->refcnt == 0 && !b->in_list && b->timestamp <= oldest_timestamp) {
       oldest = b;
       oldest_timestamp = b->timestamp;
     }
   }
+  // UNLOCK_ALL_F;
   if (oldest) {
+    // LOCK_BUF;
     b = oldest;
     b->timestamp = ticks;
     b->in_list = 1;
@@ -197,34 +200,13 @@ static struct buf *bget(uint dev, uint blockno) {
     // do not use prev to iterate list
     b->prev = 0;
     struct sleeplock *lock = &b->lock;
-    UNLOCK_ALL_F;
     // UNLOCK_BUF;
+    UNLOCK_ALL_F;
     acquiresleep(lock);
     return b;
   } else {
     Err("cannot find oldest! ticks: %d", ticks);
   }
-
-  // for (b = bcache.buf; b < bcache.buf + NBUF; b++) {
-  //   if (b->refcnt == 0 && !b->in_list) {
-  //     b->in_list = 1;
-  //     b->dev = dev;
-  //     b->blockno = blockno;
-  //     b->valid = 0;
-  //     b->refcnt = 1;
-  //     // add to hashed link
-  //     b->next = bcache.head[hash].next;
-  //     bcache.head[hash].next = b;
-  //     // do not use prev to iterate list
-  //     b->prev = 0;
-  //     struct sleeplock *lock = &b->lock;
-  //     // Log("bget: create; ticks %d", ticks);
-  //     UNLOCK_ALL_F;
-  //     acquiresleep(lock);
-  //     return b;
-  //   }
-  // }
-
   UNLOCK_ALL_F;
 #endif
   panic("bget: no buffers");
@@ -275,9 +257,12 @@ void brelse(struct buf *b) {
     while (p && p->next) {
       struct buf *n = p->next;
       if (n->blockno == b->blockno && n->dev == b->dev) {
+        // LOCK_ALL_F;
         p->next = n->next;
         n->in_list = 0;
         n->timestamp = -1;
+        n->next = 0;
+        // UNLOCK_ALL_F;
       }
       p = p->next;
     }
