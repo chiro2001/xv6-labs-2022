@@ -23,7 +23,7 @@
 #include "spinlock.h"
 #include "types.h"
 
-#define BIO_SPLIT_LOCK 1
+// #define BIO_SPLIT_LOCK 1
 
 // #define BIO_LOG 1
 
@@ -132,7 +132,7 @@ static struct buf *bget(uint dev, uint blockno) {
   // Is the block already cached?
   struct buf *iter;
   for (b = bcache.head IFDEF(BIO_SPLIT_LOCK, [hash]).next;
-       b != &bcache.head IFDEF(BIO_SPLIT_LOCK, [hash]) && b; b = iter) {
+       b != &bcache.head IFDEF(BIO_SPLIT_LOCK, [hash]) && b && 0; b = iter) {
     LOCK_BUF;
     if (b->dev == dev && b->blockno == blockno) {
       b->refcnt++;
@@ -182,6 +182,7 @@ static struct buf *bget(uint dev, uint blockno) {
       b->valid = 0;
       b->refcnt = 1;
       // add to hashed link
+      b->next = bcache.head[hash].next;
       bcache.head[hash].next = b;
       // do not use prev to iterate list
       b->prev = 0;
@@ -193,17 +194,17 @@ static struct buf *bget(uint dev, uint blockno) {
   }
   UNLOCK_ALL_F;
 #endif
-  Err("bget: no buffers! hash=%d", hash);
-  printf("refcnt = [");
-  for (b = bcache.buf; b < bcache.buf + NBUF; b++) {
-    printf("%d, ", b->refcnt);
-  }
-  printf("]\n");
-  printf("buf_use = [");
-  for (b = bcache.buf; b < bcache.buf + NBUF; b++) {
-    printf("%d, ", bcache.buf_use[b - bcache.buf]);
-  }
-  printf("]\n");
+  // Err("bget: no buffers! hash=%d", hash);
+  // printf("refcnt = [");
+  // for (b = bcache.buf; b < bcache.buf + NBUF; b++) {
+  //   printf("%d, ", b->refcnt);
+  // }
+  // printf("]\n");
+  // printf("buf_use = [");
+  // for (b = bcache.buf; b < bcache.buf + NBUF; b++) {
+  //   printf("%d, ", bcache.buf_use[b - bcache.buf]);
+  // }
+  // printf("]\n");
   panic("bget: no buffers");
 }
 
