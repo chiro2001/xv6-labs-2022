@@ -153,15 +153,18 @@ void *kalloc(void) {
 
 修改磁盘缓存块列表的管理机制，使得可用多个锁管理缓存块，从而减少缓存块管理的锁争用。
 
-基本思路非常简单，直接将原本的锁和锁管理的缓存块列表复制 N 份即可。
+基本思路非常简单，直接将原本的锁和锁管理的缓存块列表复制 N 份即可。这样做维护的是单个哈希桶内的链表 LRU 而非全局 LRU，为的就是减少全局锁的争用，同时尽量减少 LRU 的维护成本。使用链表维护的 LRU 每次修改只需要 O(1) 的时间复杂度，相比使用时间戳的方法（O(N)）好上一些。
 
 在 `params.h` 中添加了修改需要的参数，分别表示是否使用多个锁和锁的个数。
 
 ```C
+// Split kmem to every cpu cores
+#define KMEM_SPLIT 1
+
 // Split block cache locks
 #define BIO_SPLIT_LOCK 1
 // Split block cache into N groups
-#define BIO_N 7
+#define BIO_N 9
 ```
 
 修改 `bcache` 结构，添加多个锁 `lock_bucket[BIO_n]` 和链表头 `head[BIO_N][NBUF]` 以及多个缓存块 `buf[BIO_N][NBUF]`：
@@ -361,12 +364,21 @@ $ bcachetest
 start test0
 test0 results:
 --- lock kmem/bcache stats
+lock: bcache: #fetch-and-add 0 #acquire() 9145
+lock: bcache: #fetch-and-add 0 #acquire() 6853
+lock: bcache: #fetch-and-add 0 #acquire() 11693
+lock: bcache: #fetch-and-add 0 #acquire() 7051
+lock: bcache: #fetch-and-add 0 #acquire() 8930
+lock: bcache: #fetch-and-add 0 #acquire() 7123
+lock: bcache: #fetch-and-add 0 #acquire() 6975
+lock: bcache: #fetch-and-add 0 #acquire() 7358
+lock: bcache: #fetch-and-add 0 #acquire() 6852
 --- top 5 contended locks:
-lock: virtio_disk: #fetch-and-add 237627 #acquire() 1122
-lock: proc: #fetch-and-add 197794 #acquire() 78244
-lock: proc: #fetch-and-add 33567 #acquire() 78601
-lock: proc: #fetch-and-add 10290 #acquire() 78287
-lock: uart: #fetch-and-add 8231 #acquire() 287
+lock: virtio_disk: #fetch-and-add 240767 #acquire() 1122
+lock: proc: #fetch-and-add 36569 #acquire() 76337
+lock: uart: #fetch-and-add 9233 #acquire() 308
+lock: proc: #fetch-and-add 9009 #acquire() 76008
+lock: proc: #fetch-and-add 5879 #acquire() 76026
 tot= 0
 test0: OK
 start test1
@@ -381,16 +393,25 @@ $ kalloctest
 start test1
 test1 results:
 --- lock kmem/bcache stats
+lock: bcache: #fetch-and-add 0 #acquire() 26001
+lock: bcache: #fetch-and-add 0 #acquire() 21450
+lock: bcache: #fetch-and-add 137 #acquire() 45612
+lock: bcache: #fetch-and-add 0 #acquire() 22129
+lock: bcache: #fetch-and-add 0 #acquire() 24008
+lock: bcache: #fetch-and-add 0 #acquire() 24988
+lock: bcache: #fetch-and-add 0 #acquire() 24666
+lock: bcache: #fetch-and-add 95 #acquire() 26312
+lock: bcache: #fetch-and-add 0 #acquire() 39588
 --- top 5 contended locks:
-lock: virtio_disk: #fetch-and-add 873444 #acquire() 4500
-lock: proc: #fetch-and-add 207909 #acquire() 333460
-lock: proc: #fetch-and-add 107713 #acquire() 333461
-lock: proc: #fetch-and-add 82298 #acquire() 334947
-lock: proc: #fetch-and-add 67913 #acquire() 333460
-tot= 0
+lock: virtio_disk: #fetch-and-add 993917 #acquire() 4500
+lock: proc: #fetch-and-add 87981 #acquire() 329510
+lock: proc: #fetch-and-add 52001 #acquire() 328064
+lock: proc: #fetch-and-add 30441 #acquire() 328026
+lock: proc: #fetch-and-add 28081 #acquire() 328027
+tot= 232
 test1 OK
 start test2
-total free number of pages: 32444 (out of 32768)
+total free number of pages: 32428 (out of 32768)
 .....
 test2 OK
 $ 

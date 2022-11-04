@@ -25,6 +25,6 @@
 // Split block cache locks
 #define BIO_SPLIT_LOCK 1
 // Split block cache into N groups
-#define BIO_N 7
+#define BIO_N 9
 
 #endif  // _INC_PARAM_H
