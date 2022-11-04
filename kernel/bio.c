@@ -68,11 +68,12 @@ struct {
 void binit(void) {
   initlock(&bcache.lock, "bcache");
 #ifdef BIO_SPLIT_LOCK
-  char name_grp[256];
+  // char name_grp[256];
   for (int i = 0; i < BIO_N; i++) {
-    snprintf(name_grp, sizeof(name_grp), "bcache_bucket_%d", i);
     // Log("init lock %s", name_grp);
-    initlock(&bcache.lock_bucket[i], name_grp);
+    // snprintf(name_grp, sizeof(name_grp), "bcache_bucket_%d", i);
+    // initlock(&bcache.lock_bucket[i], name_grp);
+    initlock(&bcache.lock_bucket[i], "bcache");
   }
 #endif
 
