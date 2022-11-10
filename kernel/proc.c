@@ -518,7 +518,7 @@ void scheduler(void) {
         Dbg("Switching to user pagetable. global = %p, kernel = %p, user = %p", kernel_pagetable, p->k_pagetable, p->pagetable);
         pkvminithart(p->k_pagetable);
         Log("Switch done to user pagetable %s", "!!!");
-        Log("Switching context %s; forkret at %p", "!!!", forkret);
+        Log("Switching context from c %p to p %p", c->context, p->context);
         show_context(&c->context);
         show_context(&p->context);
         swtch(&c->context, &p->context);
