@@ -1,8 +1,9 @@
 #include <stdint.h>
+
 #include "kernel/types.h"
 #include "user.h"
 
-int main(int argc, char* argv[]) {
+int main(int argc, char *argv[]) {
   int ping[2] = {0, 0};
   int pong[2] = {0, 0};
   pipe(ping);
@@ -22,7 +23,7 @@ int main(int argc, char* argv[]) {
       printf("Error: too large data with %d bytes!\n", data_len);
       exit(1);
     }
-    data = (char *) malloc(sizeof(char) * data_len);
+    data = (char *)malloc(sizeof(char) * data_len);
     read(pong[0], data, data_len);
     printf("%d: received %s\n", getpid(), data);
     close(ping[1]);
@@ -39,7 +40,7 @@ int main(int argc, char* argv[]) {
       printf("Error: too large data with %d bytes!\n", data_len);
       exit(1);
     }
-    char *data = (char *) malloc(sizeof(char) * data_len);
+    char *data = (char *)malloc(sizeof(char) * data_len);
     read(ping[0], data, data_len);
     close(ping[0]);
     printf("%d: received %s\n", getpid(), data);
@@ -51,7 +52,7 @@ int main(int argc, char* argv[]) {
         printf("Error: too large data with %d bytes!\n", argv_str_len);
         exit(1);
       }
-      data = (char *) malloc(sizeof(char) * (argv_str_len + 1));
+      data = (char *)malloc(sizeof(char) * (argv_str_len + 1));
       is_alloc = 1;
       strcpy(data, argv[2]);
     } else {

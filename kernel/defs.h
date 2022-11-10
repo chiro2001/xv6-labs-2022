@@ -1,6 +1,8 @@
 #ifndef _KERNEL_DEFS_H_
 #define _KERNEL_DEFS_H_
 
+#include "kernel/common.h"
+
 struct buf;
 struct context;
 struct file;
@@ -129,6 +131,9 @@ void            initlock(struct spinlock*, char*);
 void            release(struct spinlock*);
 void            push_off(void);
 void            pop_off(void);
+#ifdef LAB_LOCK
+void            freelock(struct spinlock*);
+#endif
 
 // sleeplock.c
 void            acquiresleep(struct sleeplock*);
@@ -170,9 +175,6 @@ int             uartgetc(void);
 // vm.c
 void            kvminit(void);
 void            kvminithart(void);
-void            pkvminithart(pagetable_t);
-pagetable_t     pkvminit(void);
-uint64          kvmpa(uint64);
 void            kvmmap(uint64, uint64, uint64, int);
 void            pkvmmap(pagetable_t, uint64, uint64, uint64, int);
 int             mappages(pagetable_t, uint64, uint64, uint64, int);

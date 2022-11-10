@@ -1,9 +1,10 @@
-#include "param.h"
-#include "types.h"
-#include "riscv.h"
 #include "defs.h"
-#include "spinlock.h"
+#include "kernel/common.h"
+#include "param.h"
 #include "proc.h"
+#include "riscv.h"
+#include "spinlock.h"
+#include "types.h"
 
 //
 // This file contains copyin_new() and copyinstr_new(), the

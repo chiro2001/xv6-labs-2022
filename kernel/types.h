@@ -1,3 +1,5 @@
+#ifndef _INC_TYPES_H
+#define _INC_TYPES_H
 typedef unsigned int   uint;
 typedef unsigned short ushort;
 typedef unsigned char  uchar;
@@ -8,3 +10,4 @@ typedef unsigned int  uint32;
 typedef unsigned long uint64;
 
 typedef uint64 pde_t;
+#endif  // _INC_TYPES_H

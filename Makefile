@@ -197,14 +197,6 @@ UPROGS += \
 	$U/_alarmtest
 endif
 
-ifeq ($(LAB),lazy)
-UPROGS += \
-	$U/_lazytests
-endif
-
-
-
-
 ifeq ($(LAB),$(filter $(LAB), pgtbl lock))
 UPROGS += \
 	$U/_stats
@@ -235,6 +227,7 @@ $U/uthread_switch.o : $U/uthread_switch.S
 
 $U/_uthread: $U/uthread.o $U/uthread_switch.o $(ULIB)
 	$(LD) $(LDFLAGS) -N -e main -Ttext 0 -o $U/_uthread $U/uthread.o $U/uthread_switch.o $(ULIB)
+	$(OBJDUMP) -S $U/_uthread > $U/uthread.asm
 
 ph: notxv6/ph.c
 	gcc -o ph -g -O2 notxv6/ph.c -pthread
@@ -293,6 +286,7 @@ endif
 ifeq ($(LAB),fs)
 CPUS := 1
 endif
+CFLAGS += -DCPUS=$(CPUS)
 
 FWDPORT = $(shell expr `id -u` % 5000 + 25999)
 

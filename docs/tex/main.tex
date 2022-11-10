@@ -1,7 +1,7 @@
 \documentclass[a4paper]{article}
 \usepackage{osreport}
 \usepackage{listings}
-\usepackage{markdown}
+\usepackage[theme=witiko/graphicx/http]{markdown}
 \usepackage{getenv}
 
 \getenv[\LAB]{LAB}
@@ -15,7 +15,14 @@
 \stuid{\STUID}
 \stuclass{\STUCLASS}
 
-\markdownSetup{fencedCode = true}
+\markdownSetup{
+    rendererPrototypes = {
+        image = {\includegraphics[clip,width=0.8\textwidth]{#2}},
+        codeSpan = {\texttt{#1}},
+        % Render inline code via `\texttt`.
+        },
+    fencedCode = true
+}
 
 \date{\today}
 \location{T2210}

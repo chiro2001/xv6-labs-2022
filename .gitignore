@@ -27,3 +27,4 @@ barrier
 .submit
 submit.zip
 tmp/
+*.log

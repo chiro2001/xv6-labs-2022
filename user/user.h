@@ -1,6 +1,14 @@
 #ifndef _USER_USER_H_
 #define _USER_USER_H_
-
+#ifdef LOG_COLOR
+#undef LOG_COLOR
+#endif
+#define LOG_COLOR ANSI_FG_GREEN
+#ifdef LOG_COLOR_ERR
+#undef LOG_COLOR_ERR
+#endif
+#define LOG_COLOR_ERR ANSI_FG_YELLOW
+#include "kernel/common.h"
 struct stat;
 struct rtcdate;
 struct sysinfo;
@@ -39,7 +47,7 @@ int connect(uint32, uint16, uint16);
 // ulib.c
 int stat(const char*, struct stat*);
 char* strcpy(char*, const char*);
-void *memmove(void*, const void*, int);
+void* memmove(void*, const void*, int);
 char* strchr(const char*, char c);
 int strcmp(const char*, const char*);
 void fprintf(int, const char*, ...);
@@ -50,10 +58,8 @@ void* memset(void*, int, uint);
 void* malloc(uint);
 void free(void*);
 int atoi(const char*);
-int memcmp(const void *, const void *, uint);
-void *memcpy(void *, const void *, uint);
+int memcmp(const void*, const void*, uint);
+void* memcpy(void*, const void*, uint);
 int statistics(void*, int);
 
-#include "kernel/dbgconf.h"
-
-#endif // _USER_USER_H_
+#endif  // _USER_USER_H_

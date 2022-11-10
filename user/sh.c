@@ -1,5 +1,7 @@
 // Shell.
 
+#include "kernel/debug.h"
+#include "kernel/fcntl.h"
 #include "kernel/types.h"
 #include "user/user.h"
 #include "kernel/fcntl.h"
@@ -154,7 +156,8 @@ char *fgets(int fd, char *buf, int max) {
 static int execute_shrc_done = 0;
 
 int execute_command(char *buf) {
-  Log("execute_command(%s)", buf);
+  // ignore comments
+  if (!buf || buf[0] == '#') return 0;
   // Log("$ %s", buf);
   if (buf[0] == 'c' && buf[1] == 'd' && buf[2] == ' ') {
     // Chdir must be called by the parent, not the child.
@@ -172,7 +175,8 @@ int execute_shrc() {
   int fd;
   if (execute_shrc_done) return 0;
   if ((fd = open(SH_FILE_SHRC, O_RDONLY)) < 0) {
-    Log(SH_FILE_SHRC " found. Note that commands in " SH_FILE_SHRC " will be excute on shell starts.");
+    Log(SH_FILE_SHRC " not found. Note that commands in " SH_FILE_SHRC
+                     " will be excute on shell starts.");
     return -1;
   } else {
     Log("Open file %s, fd=%d", SH_FILE_SHRC, fd);

@@ -1,8 +1,8 @@
-#include "kernel/types.h"
+#include "kernel/fcntl.h"
 #include "kernel/riscv.h"
 #include "kernel/sysinfo.h"
+#include "kernel/types.h"
 #include "user/user.h"
-#include "kernel/fcntl.h"
 
 void sinfo(struct sysinfo *info) {
   if (sysinfo(info) < 0) {

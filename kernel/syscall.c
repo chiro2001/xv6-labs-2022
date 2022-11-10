@@ -1,12 +1,17 @@
-#include "types.h"
-#include "param.h"
+#include "syscall.h"
+
+#include "defs.h"
+#include "kernel/common.h"
 #include "memlayout.h"
+#include "param.h"
+#include "proc.h"
 #include "riscv.h"
 #include "spinlock.h"
 #include "proc.h"
 #include "syscall.h"
 #include "defs.h"
 #include "debug.h"
+#include "types.h"
 
 // Fetch the uint64 at addr from the current process.
 int fetchaddr(uint64 addr, uint64 *ip) {
@@ -95,43 +100,21 @@ extern uint64 sys_sysinfo(void);
 extern uint64 sys_checkvm(void);
 
 static uint64 (*syscalls[])(void) = {
-    [SYS_fork] sys_fork,   [SYS_exit] sys_exit,     [SYS_wait] sys_wait,
-    [SYS_pipe] sys_pipe,   [SYS_read] sys_read,     [SYS_kill] sys_kill,
-    [SYS_exec] sys_exec,   [SYS_fstat] sys_fstat,   [SYS_chdir] sys_chdir,
-    [SYS_dup] sys_dup,     [SYS_getpid] sys_getpid, [SYS_sbrk] sys_sbrk,
-    [SYS_sleep] sys_sleep, [SYS_uptime] sys_uptime, [SYS_open] sys_open,
-    [SYS_write] sys_write, [SYS_mknod] sys_mknod,   [SYS_unlink] sys_unlink,
-    [SYS_link] sys_link,   [SYS_mkdir] sys_mkdir,   [SYS_close] sys_close,
+    [SYS_fork] sys_fork,   [SYS_exit] sys_exit,       [SYS_wait] sys_wait,
+    [SYS_pipe] sys_pipe,   [SYS_read] sys_read,       [SYS_kill] sys_kill,
+    [SYS_exec] sys_exec,   [SYS_fstat] sys_fstat,     [SYS_chdir] sys_chdir,
+    [SYS_dup] sys_dup,     [SYS_getpid] sys_getpid,   [SYS_sbrk] sys_sbrk,
+    [SYS_sleep] sys_sleep, [SYS_uptime] sys_uptime,   [SYS_open] sys_open,
+    [SYS_write] sys_write, [SYS_mknod] sys_mknod,     [SYS_unlink] sys_unlink,
+    [SYS_link] sys_link,   [SYS_mkdir] sys_mkdir,     [SYS_close] sys_close,
     [SYS_trace] sys_trace, [SYS_sysinfo] sys_sysinfo, [SYS_checkvm] sys_checkvm,
 };
 
 const char syscall_names[][10] = {
-  "",
-  "fork",
-  "exit",
-  "wait",
-  "pipe",
-  "read",
-  "kill",
-  "exec",
-  "fstat",
-  "chdir",
-  "dup",
-  "getpid",
-  "sbrk",
-  "sleep",
-  "uptime",
-  "open",
-  "write",
-  "mknod",
-  "unlink",
-  "link",
-  "mkdir",
-  "close",
-  "trace",
-  "sysinfo",
-  "checkvm"
-};
+    "",       "fork",  "exit",    "wait",   "pipe",   "read", "kill",
+    "exec",   "fstat", "chdir",   "dup",    "getpid", "sbrk", "sleep",
+    "uptime", "open",  "write",   "mknod",  "unlink", "link", "mkdir",
+    "close",  "trace", "sysinfo", "checkvm"};
 
 void syscall(void) {
   int num;

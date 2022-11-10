@@ -2,14 +2,15 @@
 // kernel stacks, page-table pages,
 // and pipe buffers. Allocates whole 4096-byte pages.
 
-#include "types.h"
-#include "param.h"
-#include "memlayout.h"
-#include "spinlock.h"
-#include "riscv.h"
 #include "defs.h"
+#include "kernel/debug.h"
+#include "memlayout.h"
+#include "param.h"
+#include "riscv.h"
+#include "spinlock.h"
+#include "types.h"
 
-void freerange(void *pa_start, void *pa_end);
+#define KMEM_CPUS MUXDEF(KMEM_SPLIT, CPUS, 1)
 
 extern char end[];  // first address after kernel.
                     // defined by kernel.ld.
@@ -21,12 +22,28 @@ struct run {
 struct {
   struct spinlock lock;
   struct run *freelist;
-} kmem;
+} kmem[NCPU];
+
+void freerange(void *pa_start, void *pa_end);
 
 void kinit() {
-  initlock(&kmem.lock, "kmem");
-  freerange(end, (void *)PHYSTOP);
-  printf("KMEM: [%p - %p], total %x PAGES, PGSIZE %x\n", end, PHYSTOP, ((uint64)PHYSTOP - (uint64)end) / PGSIZE, PGSIZE);
+  if (cpuid() != 0) {
+    IFNDEF(KMEM_SPLIT, return );
+  }
+  const char lock_name_const[] = "kmem_hart ";
+  char lock_name[sizeof(lock_name_const)];
+  for (int i = 0; i < sizeof(lock_name_const); i++) {
+    lock_name[i] = lock_name_const[i];
+  }
+  int cid = MUXDEF(KMEM_SPLIT, cpuid(), 0);
+  IFDEF(KMEM_SPLIT, lock_name[9] = cid + '0');
+  initlock(&kmem[cid].lock, lock_name);
+  Log("cpu[%d] lock init: %s; cpu %d", cid, lock_name, cid);
+  uint64 size = ((uint64)PHYSTOP - (uint64)end) / KMEM_CPUS;
+  freerange(end + size * cid, end + size * (cid + 1));
+  Log("KMEM: [%p - %p], cpu %d [%p - %p], PAGES [%x/%x]", 
+      end, PHYSTOP, cid, end + size * cid, end + size * (cid + 1),
+      size / PGSIZE, ((uint64)PHYSTOP - (uint64)end) / PGSIZE);
 }
 
 void freerange(void *pa_start, void *pa_end) {
@@ -50,10 +67,11 @@ void kfree(void *pa) {
 
   r = (struct run *)pa;
 
-  acquire(&kmem.lock);
-  r->next = kmem.freelist;
-  kmem.freelist = r;
-  release(&kmem.lock);
+  int cid = MUXDEF(KMEM_SPLIT, cpuid(), 0);
+  acquire(&kmem[cid].lock);
+  r->next = kmem[cid].freelist;
+  kmem[cid].freelist = r;
+  release(&kmem[cid].lock);
 }
 
 // Allocate one 4096-byte page of physical memory.
@@ -62,10 +80,24 @@ void kfree(void *pa) {
 void *kalloc(void) {
   struct run *r;
 
-  acquire(&kmem.lock);
-  r = kmem.freelist;
-  if (r) kmem.freelist = r->next;
-  release(&kmem.lock);
+  int cid = MUXDEF(KMEM_SPLIT, cpuid(), 0);
+  acquire(&kmem[cid].lock);
+  r = kmem[cid].freelist;
+  if (r) kmem[cid].freelist = r->next;
+  release(&kmem[cid].lock);
+  if (!r) {
+    // "steal" part of other CPU's freelist
+    // lock in order
+    for (int i = 0; i < KMEM_CPUS; i++) acquire(&kmem[i].lock);
+    for (int i = 0; i < KMEM_CPUS; i++) {
+      r = kmem[i].freelist;
+      if (r) {
+        kmem[i].freelist = r->next;
+        break;
+      }
+    }
+    for (int i = KMEM_CPUS - 1; i >= 0; i--) release(&kmem[i].lock);
+  }
 
   if (r) memset((char *)r, 5, PGSIZE);  // fill with junk
   return (void *)r;
@@ -79,12 +111,13 @@ uint32 kpageused(void) {
 // Get how many free pages
 uint32 kpagefree(void) {
   int n = 0;
-  struct run *r = kmem.freelist;
-  acquire(&kmem.lock);
+  int cid = MUXDEF(KMEM_SPLIT, cpuid(), 0);
+  struct run *r = kmem[cid].freelist;
+  acquire(&kmem[cid].lock);
   while (r) {
     n++;
     r = r->next;
   }
-  release(&kmem.lock);
+  release(&kmem[cid].lock);
   return n;
 }

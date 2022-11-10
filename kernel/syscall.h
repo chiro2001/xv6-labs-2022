@@ -1,3 +1,5 @@
+#ifndef _INC_SYSCALL_H
+#define _INC_SYSCALL_H
 // System call numbers
 #define SYS_fork    1
 #define SYS_exit    2
@@ -23,3 +25,4 @@
 #define SYS_trace  22
 #define SYS_sysinfo 23
 #define SYS_checkvm 24
+#endif  // _INC_SYSCALL_H
