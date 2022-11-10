@@ -131,7 +131,7 @@ int exec(char *path, char **argv) {
   proc_freepagetable(oldpagetable, oldsz);
 
   // Copy kernel pagetable
-  if (pkvmcopy(p->pagetable, p->kernel_pagetable, 0, sz) < 0) goto bad;
+  if (pkvmcopy(p->pagetable, p->k_pagetable, 0, sz) < 0) goto bad;
 
   if (p->pid == 1) {
     vmprint(p->pagetable);
