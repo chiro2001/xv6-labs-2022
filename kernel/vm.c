@@ -32,8 +32,8 @@ pagetable_t pkvminit() {
   // virtio mmio disk interface
   pkvmmap(pagetable, VIRTIO0, VIRTIO0, PGSIZE, PTE_R | PTE_W);
 
-  // CLINT
-  pkvmmap(pagetable, CLINT, CLINT, 0x10000, PTE_R | PTE_W);
+  // CLINT: Donot map me! do it at allocproc
+  // pkvmmap(pagetable, CLINT, CLINT, 0x10000, PTE_R | PTE_W);
 
   // PLIC
   pkvmmap(pagetable, PLIC, PLIC, 0x400000, PTE_R | PTE_W);
@@ -107,8 +107,15 @@ void pkvminithart(pagetable_t pagetable) {
 pte_t *walk(pagetable_t pagetable, uint64 va, int alloc) {
   if (va >= MAXVA) panic("walk");
 
+  // if (pagetable != kernel_pagetable)
+  //   Dbg("walk user pgtbl %p for pa %p", pagetable, va);
+
   for (int level = 2; level > 0; level--) {
     pte_t *pte = &pagetable[PX(level, va)];
+    if (!pte) {
+      Dbg("walk user pgtbl %p for pa %p", pagetable, va);
+      Panic("walk user pgtbl %p for pa %p", pagetable, va);
+    }
     if (*pte & PTE_V) {
       pagetable = (pagetable_t)PTE2PA(*pte);
     } else {

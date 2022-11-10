@@ -241,7 +241,7 @@ int main(void) {
   Log("sh starting, pid: %d", getpid());
 
   test_pipe();
-  test_exec();
+  // test_exec();
 
   // Ensure that three file descriptors are open.
   while ((fd = open("console", O_RDWR)) >= 0) {
