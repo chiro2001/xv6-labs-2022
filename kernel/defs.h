@@ -207,10 +207,6 @@ void            vmprint(pagetable_t);
 int copyin_new(pagetable_t, char *, uint64, uint64);
 int copyinstr_new(pagetable_t, char *, uint64, uint64);
 
-#ifndef COPYIN_USE_NEW
-#define COPYIN_USE_NEW 1
-#endif
-
 // plic.c
 void            plicinit(void);
 void            plicinithart(void);

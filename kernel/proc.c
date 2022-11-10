@@ -1,14 +1,13 @@
 #include "proc.h"
 
+#include "debug.h"
 #include "defs.h"
 #include "kernel/common.h"
 #include "memlayout.h"
 #include "param.h"
+#include "proc.h"
 #include "riscv.h"
 #include "spinlock.h"
-#include "proc.h"
-#include "defs.h"
-#include "debug.h"
 #include "types.h"
 
 struct cpu cpus[NCPU];
@@ -43,6 +42,7 @@ void procinit(void) {
     if (p->pid != 0) Log("procinit: mapping kernel stack, pid: %d", p->pid);
     kvmmap(va, (uint64)pa, PGSIZE, PTE_R | PTE_W);
     p->kstack = va;
+    p->kstack_pa = (uint64)(pa);
   }
   kvminithart();
 }
@@ -126,14 +126,18 @@ found:
     return 0;
   }
   // // Map KSTACK to user's kernel pagetabel
-  uint64 kernel_va = KSTACK((int) (p - proc));
-  uint64 kernel_pa = kvmpa(kernel_va);
-  Dbg("Mapped user's kernel pagetable stack va:pa = %p:%p", kernel_va, kernel_pa);
+  uint64 kernel_va = KSTACK((int)(p - proc));
+  // uint64 kernel_pa = kvmpa(kernel_va);
+  uint64 kernel_pa = p->kstack_pa;
+  Assert(kvmpa(kernel_va) == kernel_pa,
+         "assert kernel_pa can be calulated in %s", "allowproc");
+  Dbg("Mapped user's kernel pagetable stack va:pa = %p:%p", kernel_va,
+      kernel_pa);
   pkvmmap(p->k_pagetable, kernel_va, kernel_pa, PGSIZE, PTE_R | PTE_W);
 
   // Sync even when create
   // pkvmcopy(p->pagetable, p->k_pagetable, 0, PGSIZE);
-  
+
   // Set up new context to start executing at forkret,
   // which returns to user space.
   memset(&p->context, 0, sizeof(p->context));
@@ -201,7 +205,8 @@ void proc_freepagetable(pagetable_t pagetable, uint64 sz) {
   uvmfree(pagetable, sz);
 }
 
-// Free a process's kernel page table, but need not free the physical memory it refers to
+// Free a process's kernel page table, but need not free the physical memory it
+// refers to
 void proc_free_kernel_pagetable(pagetable_t pagetable) {
   for (int i = 0; i < 512; i++) {
     pte_t pte = pagetable[i];
@@ -237,7 +242,8 @@ void userinit(void) {
 
   pkvmcopy(p->pagetable, p->k_pagetable, 0, p->sz);
 
-  Log("userinit: pid=%d, pgtbl=%p, kernel_pagetable=%p", p->pid, p->pagetable, p->k_pagetable);
+  Log("userinit: pid=%d, pgtbl=%p, kernel_pagetable=%p", p->pid, p->pagetable,
+      p->k_pagetable);
 
   // prepare for the very first "return" from kernel to user.
   p->trapframe->epc = 0;      // user program counter
@@ -476,7 +482,7 @@ int wait(uint64 addr) {
 }
 
 void show_context(struct context *context) {
-  // Log("Ctx[ra=%p, sp=%p]", context->ra, context->sp);
+  Log("Ctx[ra=%p, sp=%p]", context->ra, context->sp);
 }
 
 // Per-CPU process scheduler.
@@ -508,11 +514,11 @@ void scheduler(void) {
         p->state = RUNNING;
         c->proc = p;
         // switch to user pagetable
-        // IFDEF(CONFIG_PRINT_LOG, extern pagetable_t kernel_pagetable);
-        // Log("Switching to user pagetable. global = %p, kernel = %p, user = %p", kernel_pagetable, p->k_pagetable, p->pagetable);
+        IFDEF(DEBUG, extern pagetable_t kernel_pagetable);
+        Dbg("Switching to user pagetable. global = %p, kernel = %p, user = %p", kernel_pagetable, p->k_pagetable, p->pagetable);
         pkvminithart(p->k_pagetable);
-        // Log("Switch done to user pagetable %s", "!!!");
-        // Log("Switching context %s; forkret at %p", "!!!", forkret);
+        Log("Switch done to user pagetable %s", "!!!");
+        Log("Switching context %s; forkret at %p", "!!!", forkret);
         show_context(&c->context);
         show_context(&p->context);
         swtch(&c->context, &p->context);

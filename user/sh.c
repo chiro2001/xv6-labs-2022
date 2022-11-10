@@ -192,6 +192,7 @@ int execute_shrc() {
   } while (buf[0] != 0);
   close(fd);
   execute_shrc_done = 1;
+  Dbg("execute_shrc Done.");
   return fd;
 }
 
@@ -252,7 +253,7 @@ int main(void) {
   }
 
   // execute .shrc
-  execute_shrc();
+  IFDEF(EXECUTE_SHRC, execute_shrc());
 
   // Read and run input commands.
   while (getcmd(buf, sizeof(buf)) >= 0) {
