@@ -515,7 +515,7 @@ void scheduler(void) {
         c->proc = p;
         // switch to user pagetable
         IFDEF(DEBUG, extern pagetable_t kernel_pagetable);
-        Dbg("Switching to user pagetable. global = %p, kernel = %p, user = %p", kernel_pagetable, p->k_pagetable, p->pagetable);
+        Dbg("[pid %d] Switching to user pagetable. global = %p, kernel = %p, user = %p", p->pid, kernel_pagetable, p->k_pagetable, p->pagetable);
         pkvminithart(p->k_pagetable);
         Log("Switch done to user pagetable %s", "!!!");
         Log("Switching context from c %p to p %p", c->context, p->context);
