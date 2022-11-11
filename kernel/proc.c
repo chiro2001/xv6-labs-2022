@@ -522,6 +522,7 @@ void scheduler(void) {
         show_context(&c->context);
         show_context(&p->context);
         swtch(&c->context, &p->context);
+        kvminithart();
         Dbg("Back to scheduler %p", scheduler);
 
         // Process is done running for now.
