@@ -6,6 +6,7 @@
 #include "types.h"
 
 volatile static int started = 0;
+volatile static int harts_started[CPUS] = {0};
 
 // start() jumps here in supervisor mode on all CPUs.
 void main() {
@@ -36,7 +37,21 @@ void main() {
 #endif
     userinit();  // first user process
     __sync_synchronize();
+    for (int i = 0; i < CPUS; i++) harts_started[i] = 0;
+    harts_started[0] = 1;
     started = 1;
+    int harts_inits_done = 0;
+    while (!harts_inits_done) {
+      int not_ready = 0;
+      for (int i = 1; i < CPUS; i++) {
+        if (!harts_started[i]) {
+          not_ready = 1;
+          break;
+        }
+      }
+      if (!not_ready) harts_inits_done = 1;
+    }
+    Log("Init done with %d CPUS", CPUS);
   } else {
     while (started == 0)
       ;
@@ -47,6 +62,8 @@ void main() {
     kvminithart();   // turn on paging
     trapinithart();  // install kernel trap vector
     plicinithart();  // ask PLIC for device interrupts
+    // tell cpu0 that i have inited
+    harts_started[cpuid()] = 1;
   }
 
   scheduler();

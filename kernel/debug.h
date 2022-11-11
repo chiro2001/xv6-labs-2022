@@ -11,16 +11,16 @@
 #define LOG_COLOR_ERR ANSI_FG_RED
 #endif
 
-#define Log(format, ...)                                                    \
+#define Log(format, ...)                                                 \
   _Log(CONFIG_PRINT_LOG, ANSI_FMT("[%s:%d %s] " format, LOG_COLOR) "\n", \
        __FILE__, __LINE__, __func__, ##__VA_ARGS__)
 
-#define Err(format, ...)                                                 \
-  _Err(CONFIG_PRINT_LOG,                                                 \
+#define Err(format, ...)                                                   \
+  _Err(CONFIG_PRINT_ERR_LOG,                                               \
        ANSI_FMT("[%s:%d %s ERROR] " format, LOG_COLOR_ERR) "\n", __FILE__, \
        __LINE__, __func__, ##__VA_ARGS__)
 
-#define Dbg(format, ...)                                                   \
+#define Dbg(format, ...)                                                \
   _Log(DEBUG, ANSI_FMT("[%s:%d %s] " format, LOG_COLOR) "\n", __FILE__, \
        __LINE__, __func__, ##__VA_ARGS__)
 
@@ -46,8 +46,7 @@
   do {                                                        \
     if (!(cond)) {                                            \
       Err(ANSI_FMT(format, ANSI_FG_RED) "\n", ##__VA_ARGS__); \
-      for (;;)                                                \
-        ;                                                     \
+      panic(#cond);                                           \
     }                                                         \
   } while (0)
 

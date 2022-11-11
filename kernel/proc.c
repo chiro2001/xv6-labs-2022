@@ -482,7 +482,7 @@ int wait(uint64 addr) {
 }
 
 void show_context(struct context *context) {
-  Log("Ctx[ra=%p, sp=%p]", context->ra, context->sp);
+  Dbg("Ctx[ra=%p, sp=%p]", context->ra, context->sp);
 }
 
 // Per-CPU process scheduler.
@@ -517,8 +517,8 @@ void scheduler(void) {
         IFDEF(DEBUG, extern pagetable_t kernel_pagetable);
         Dbg("[pid %d] Switching to user pagetable. global = %p, kernel = %p, user = %p", p->pid, kernel_pagetable, p->k_pagetable, p->pagetable);
         pkvminithart(p->k_pagetable);
-        Log("Switch done to user pagetable %s", "!!!");
-        Log("Switching context from c %p to p %p", c->context, p->context);
+        Dbg("Switch done to user pagetable %s", "!!!");
+        Dbg("Switching context from c %p to p %p", c->context, p->context);
         show_context(&c->context);
         show_context(&p->context);
         swtch(&c->context, &p->context);

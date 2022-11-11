@@ -27,7 +27,7 @@ int fetchstr(uint64 addr, char *buf, int max) {
   struct proc *p = myproc();
   int err = copyinstr(p->pagetable, buf, addr, max);
   if (err < 0) return err;
-  Log("fetchstr got %s", buf);
+  Dbg("fetchstr got %s", buf);
   return strlen(buf);
 }
 
