@@ -22,20 +22,21 @@ int exec(char *path, char **argv) {
   pagetable_t pagetable = 0, oldpagetable;
   struct proc *p = myproc();
 
-  // char argv_buf[512] = "NULL";
-  char argv_buf[0x400] = "NULL";
-  char *argv_p = argv_buf;
+  // // char argv_buf[512] = "NULL";
+  // char argv_buf[0x400] = "NULL";
+  // char *argv_p = argv_buf;
 
-  for (char **c = argv; *c; c++) {
-    Dbg("[%d] len *c: %s", c - argv, *c);
-    int len = strlen(*c);
-    memmove(argv_p, *c, len + 1);
-    argv_p += len;
-    *(argv_p++) = ';';
-    *argv_p = '\0';
-  }
+  // for (char **c = argv; *c; c++) {
+  //   Dbg("[%d] len *c: %s", c - argv, *c);
+  //   int len = strlen(*c);
+  //   memmove(argv_p, *c, len + 1);
+  //   argv_p += len;
+  //   *(argv_p++) = ';';
+  //   *argv_p = '\0';
+  // }
 
-  Log("[%d] exec(%s), args: %s", p->pid, path, argv_buf);
+  // Log("[%d] exec(%s), args: %s", p->pid, path, argv_buf);
+  Log("[%d] exec(%s), args[0]: %s", p->pid, path, argv ? 0 : argv[0]);
 
   char *path_p = path;
   int has_space = 0;
