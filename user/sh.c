@@ -1,6 +1,5 @@
 // Shell.
 
-#include "kernel/debug.h"
 #include "kernel/fcntl.h"
 #include "kernel/types.h"
 #include "user/user.h"
@@ -66,6 +65,8 @@ __attribute__((noreturn)) void runcmd(struct cmd *cmd) {
   struct redircmd *rcmd;
 
   if (cmd == 0) exit(1);
+
+  // Dbg("cmd->type = %d", cmd->type);
 
   switch (cmd->type) {
     default:
@@ -158,6 +159,7 @@ static int execute_shrc_done = 0;
 int execute_command(char *buf) {
   // ignore comments
   if (!buf || buf[0] == '#') return 0;
+  Dbg("execute_command: %s", buf);
   // Log("$ %s", buf);
   if (buf[0] == 'c' && buf[1] == 'd' && buf[2] == ' ') {
     // Chdir must be called by the parent, not the child.
@@ -165,7 +167,10 @@ int execute_command(char *buf) {
     if (chdir(buf + 3) < 0) fprintf(2, "cannot cd %s\n", buf + 3);
     return 1;
   }
-  if (fork1() == 0) runcmd(parsecmd(buf));
+  if (fork1() == 0) {
+    Dbg("will execute: %s", buf);
+    runcmd(parsecmd(buf));
+  }
   wait(0);
   return 0;
 }
@@ -187,6 +192,7 @@ int execute_shrc() {
     if (buf[0] != 0) {
       int len = strlen(buf);
       if (buf[len - 1] == '\n') buf[len - 1] = '\0';
+      Dbg("shrc: %s", buf);
       if (execute_command(buf)) break;
     }
   } while (buf[0] != 0);
@@ -395,6 +401,8 @@ struct cmd *parsecmd(char *s) {
   char *es;
   struct cmd *cmd;
 
+  Dbg("parsing cmd %s", s);
+
   es = s + strlen(s);
   cmd = parseline(&s, es);
   peek(&s, es, "");
@@ -482,7 +490,7 @@ struct cmd *parseexec(char **ps, char *es) {
   while (!peek(ps, es, "|)&;")) {
     if ((tok = gettoken(ps, es, &q, &eq)) == 0) break;
     if (tok != 'a') panic("syntax");
-    // Log("add argv: %s, eargv: %s", q, eq);
+    Dbg("add argv: %s, eargv: %s", q, eq);
     cmd->argv[argc] = q;
     cmd->eargv[argc] = eq;
     argc++;

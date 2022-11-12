@@ -181,7 +181,7 @@ int mappages(pagetable_t pagetable, uint64 va, uint64 size, uint64 pa,
   pte_t *pte;
 
   // if (pagetable != kernel_pagetable)
-    // Dbg("user mappages: pgtb=%p va:pa = %p:%p", pagetable, va, pa);
+  // Dbg("user mappages: pgtb=%p va:pa = %p:%p", pagetable, va, pa);
 
   a = PGROUNDDOWN(va);
   last = PGROUNDDOWN(va + size - 1);
@@ -414,9 +414,10 @@ int pkvmcopy(pagetable_t old, pagetable_t new, uint64 sz_old, uint64 sz_new) {
 
   for (i = sz_old; i < sz_new; i += PGSIZE) {
     if ((pte = walk(old, i, 0)) == 0) panic("pkvmcopy: pte should exist");
+    // pte_t *pte_to;
+    // if ((pte_to = walk(new, i, 1)) == 0) panic("u2kvmcopy: walk fail");
     if ((*pte & PTE_V) == 0) {
       Panic("pkvmcopy: page not present! *pte = %p", *pte);
-      panic("pkvmcopy: page not present");
     }
     pa = PTE2PA(*pte);
     // PTE_U will prevent kernel visiting user's memory, remove PTE_U flag
@@ -424,6 +425,7 @@ int pkvmcopy(pagetable_t old, pagetable_t new, uint64 sz_old, uint64 sz_new) {
     if (pkmappages(new, i, PGSIZE, pa, flags) != 0) {
       goto err;
     }
+    // *pte_to = PA2PTE(pa) | flags;
   }
   return 0;
 
@@ -431,6 +433,23 @@ int pkvmcopy(pagetable_t old, pagetable_t new, uint64 sz_old, uint64 sz_new) {
 err:
   pkvmunmap(new, 0, i / PGSIZE);
   return -1;
+
+  // pte_t *pte_from, *pte_to;
+  // uint64 pa, i;
+  // uint flags;
+
+  // if (sz_new < sz_old) return 0;
+
+  // sz_old = PGROUNDUP(sz_old);
+  // for (i = sz_old; i < sz_new; i += PGSIZE) {
+  //   if ((pte_from = walk(old, i, 0)) == 0)
+  //     panic("u2kvmcopy: u_pte should exist");
+  //   if ((pte_to = walk(new, i, 1)) == 0) panic("u2kvmcopy: walk fail");
+  //   pa = PTE2PA(*pte_from);
+  //   flags = PTE_FLAGS(*pte_from) & (~PTE_U);
+  //   *pte_to = PA2PTE(pa) | flags;
+  // }
+  // return 0;
 }
 
 // mark a PTE invalid for user access.
@@ -470,7 +489,7 @@ int copyout(pagetable_t pagetable, uint64 dstva, char *src, uint64 len) {
 int copyin(pagetable_t pagetable, char *dst, uint64 srcva, uint64 len) {
   // Log("copyin(table=%p, dst=%p, src=%p, len=%p)", pagetable, dst, srcva,
   // len);
-#ifndef COPYIN_USE_NEW
+#if !defined(COPYIN_USE_NEW) || 0
   uint64 n, va0, pa0;
 
   while (len > 0) {
@@ -498,7 +517,7 @@ int copyin(pagetable_t pagetable, char *dst, uint64 srcva, uint64 len) {
 int copyinstr(pagetable_t pagetable, char *dst, uint64 srcva, uint64 max) {
   // Log("copyinstr(table=%p, dst=%p, src=%p, max=%p)", pagetable, dst, srcva,
   // max);
-#ifndef COPYIN_USE_NEW
+#if !defined(COPYIN_USE_NEW) || 0
   uint64 n, va0, pa0;
   int got_null = 0;
 

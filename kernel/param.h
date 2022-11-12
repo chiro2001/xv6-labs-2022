@@ -28,7 +28,7 @@
 #define BIO_N 9
 
 #ifndef COPYIN_USE_NEW
-// #define COPYIN_USE_NEW 1
+#define COPYIN_USE_NEW 1
 #endif
 
 #ifndef EXECUTE_SHRC

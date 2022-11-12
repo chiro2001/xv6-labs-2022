@@ -126,7 +126,8 @@ found:
     return 0;
   }
   // // Map KSTACK to user's kernel pagetabel
-  uint64 kernel_va = KSTACK((int)(p - proc));
+  // uint64 kernel_va = KSTACK((int)(p - proc));
+  uint64 kernel_va = p->kstack;
   // uint64 kernel_pa = kvmpa(kernel_va);
   uint64 kernel_pa = p->kstack_pa;
   Assert(kvmpa(kernel_va) == kernel_pa,
@@ -281,9 +282,15 @@ int growproc(int n) {
 
   sz = p->sz;
   if (n > 0) {
-    if (sz + n >= PLIC || (sz = uvmalloc(p->pagetable, sz, sz + n)) == 0) {
+    if (sz + n >= PLIC) {
+      Err("grouproc: cannot grow up to PLIC! new sz: %p, PLIC: %p", sz + n,
+          PLIC);
       return -1;
     }
+    if ((sz = uvmalloc(p->pagetable, sz, sz + n)) == 0) {
+      return -1;
+    }
+    // new size == sz here
     if (pkvmcopy(p->pagetable, p->k_pagetable, p->sz, sz) < 0) {
       return -1;
     }
@@ -331,7 +338,7 @@ int fork(void) {
   np->cwd = idup(p->cwd);
 
   // Copy user's kernel pagetable flags parent to child
-  if (pkvmcopy(p->pagetable, np->k_pagetable, 0, p->sz) < 0) {
+  if (pkvmcopy(np->pagetable, np->k_pagetable, 0, np->sz) < 0) {
     freeproc(np);
     release(&np->lock);
     return -1;
@@ -529,7 +536,8 @@ void scheduler(void) {
         c->proc = p;
         // switch to user pagetable
         // IFDEF(DEBUG, extern pagetable_t kernel_pagetable);
-        // Dbg("[pid %d] Switching to user pagetable. global = %p, kernel = %p, "
+        // Dbg("[pid %d] Switching to user pagetable. global = %p, kernel = %p,
+        // "
         //     "user = %p",
         //     p->pid, kernel_pagetable, p->k_pagetable, p->pagetable);
         pkvminithart(p->k_pagetable);
