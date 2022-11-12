@@ -150,7 +150,7 @@ bad:
     iunlockput(ip);
     end_op();
   }
-  Err("exec bad! ret=%d", -1);
+  Dbg("exec bad! ret=%d", -1);
   return -1;
 }
 
