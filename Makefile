@@ -86,7 +86,7 @@ OBJDUMP = $(TOOLPREFIX)objdump
 
 CFLAGS = -Wall -Werror -fno-omit-frame-pointer -ggdb
 ifdef DEBUG
-CFLAGS += -O0
+CFLAGS += -O0 -DDEBUG=1
 else
 CFLAGS += -O
 endif

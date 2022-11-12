@@ -379,14 +379,17 @@ uint64 sys_exec(void) {
   uint64 uargv, uarg;
 
   if (argstr(0, path, MAXPATH) < 0 || argaddr(1, &uargv) < 0) {
+    Dbg("exec failed! %s", "cannot get args!");
     return -1;
   }
   memset(argv, 0, sizeof(argv));
   for (i = 0;; i++) {
     if (i >= NELEM(argv)) {
+      Dbg("exec failed for too many argv, i=%d", i);
       goto bad;
     }
     if (fetchaddr(uargv + sizeof(uint64) * i, (uint64 *)&uarg) < 0) {
+      Dbg("exec failed cannot get arg, i=%d", i);
       goto bad;
     }
     if (uarg == 0) {
@@ -394,10 +397,14 @@ uint64 sys_exec(void) {
       break;
     }
     argv[i] = kalloc();
-    if (argv[i] == 0) goto bad;
+    if (argv[i] == 0) {
+      Dbg("exec failed for argv[i]=0, i=%d", i);
+      goto bad;
+    }
     if (fetchstr(uarg, argv[i], PGSIZE) < 0) goto bad;
   }
 
+  Dbg("exec(path=%s, argv[0]=%s)", path, argv[0]);
   int ret = exec(path, argv);
 
   for (i = 0; i < NELEM(argv) && argv[i] != 0; i++) kfree(argv[i]);

@@ -6,6 +6,7 @@
 #include "kernel/stat.h"
 #include "kernel/syscall.h"
 #include "kernel/types.h"
+#include "user/debug.h"
 #include "user/user.h"
 
 //
@@ -2211,16 +2212,19 @@ void bigargtest(char *s) {
   if (pid == 0) {
     static char *args[MAXARG];
     int i;
-    for (i = 0; i < MAXARG - 1; i++)
+    args[0] = "echo";
+    for (i = 1; i < MAXARG - 1; i++)
       // args[i] =
-      //     "bigargs test: failed\n                                              "
-      //     "                                                                    "
-      //     "                                                                    "
-      //     "                 ";
-      args[i] =
-          "bigargs test: failed\n";
+      // "bigargs test: failed\n                   "
+      // "                                         "
+      // "                                         "
+      // "                 ";
+      args[i] = "bigargs test: failed";
     args[MAXARG - 1] = 0;
+    // args[1] = 0;
+    Dbg("will exec!");
     exec("echo", args);
+    Dbg("exec done!");
     fd = open("bigarg-ok", O_CREATE);
     close(fd);
     exit(0);
@@ -2230,10 +2234,14 @@ void bigargtest(char *s) {
   }
 
   wait(&xstatus);
-  if (xstatus != 0) exit(xstatus);
+  if (xstatus != 0) {
+    Err("exec echo failed with code %d", xstatus);
+    exit(xstatus);
+  }
   fd = open("bigarg-ok", 0);
   if (fd < 0) {
     printf("%s: bigarg test failed!\n", s);
+    Err("%s: bigarg test failed! fd = %d", s, fd);
     exit(1);
   }
   close(fd);

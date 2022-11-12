@@ -1,6 +1,6 @@
 #include "defs.h"
 #include "elf.h"
-#include "user/debug.h"
+#include "kernel/debug.h"
 #include "kernel/common.h"
 #include "memlayout.h"
 #include "param.h"
@@ -53,6 +53,7 @@ int exec(char *path, char **argv) {
 
   if ((ip = namei(path)) == 0) {
     end_op();
+    Dbg("get path %s err!", path);
     return -1;
   }
   // Log("[%d] exec got node %p", p->pid, ip);

@@ -180,8 +180,8 @@ int mappages(pagetable_t pagetable, uint64 va, uint64 size, uint64 pa,
   uint64 a, last;
   pte_t *pte;
 
-  if (pagetable != kernel_pagetable)
-    Dbg("user mappages: pgtb=%p va:pa = %p:%p", pagetable, va, pa);
+  // if (pagetable != kernel_pagetable)
+    // Dbg("user mappages: pgtb=%p va:pa = %p:%p", pagetable, va, pa);
 
   a = PGROUNDDOWN(va);
   last = PGROUNDDOWN(va + size - 1);
@@ -410,7 +410,7 @@ int pkvmcopy(pagetable_t old, pagetable_t new, uint64 sz_old, uint64 sz_new) {
   uint64 pa, i;
   uint flags;
 
-  Dbg("pkvmcopy(%p, %p, %x, %x)", old, new, sz_old, sz_new);
+  // Dbg("pkvmcopy(%p, %p, %x, %x)", old, new, sz_old, sz_new);
 
   for (i = sz_old; i < sz_new; i += PGSIZE) {
     if ((pte = walk(old, i, 0)) == 0) panic("pkvmcopy: pte should exist");

@@ -277,7 +277,7 @@ int growproc(int n) {
   uint sz;
   struct proc *p = myproc();
 
-  Dbg("[%d] growproc(%d)", p->pid, n);
+  // Dbg("[%d] growproc(%d)", p->pid, n);
 
   sz = p->sz;
   if (n > 0) {
@@ -496,7 +496,7 @@ int wait(uint64 addr) {
 }
 
 void show_context(struct context *context) {
-  Dbg("Ctx[ra=%p, sp=%p]", context->ra, context->sp);
+  // Dbg("Ctx[ra=%p, sp=%p]", context->ra, context->sp);
 }
 
 // Per-CPU process scheduler.
@@ -528,18 +528,18 @@ void scheduler(void) {
         p->state = RUNNING;
         c->proc = p;
         // switch to user pagetable
-        IFDEF(DEBUG, extern pagetable_t kernel_pagetable);
-        Dbg("[pid %d] Switching to user pagetable. global = %p, kernel = %p, "
-            "user = %p",
-            p->pid, kernel_pagetable, p->k_pagetable, p->pagetable);
+        // IFDEF(DEBUG, extern pagetable_t kernel_pagetable);
+        // Dbg("[pid %d] Switching to user pagetable. global = %p, kernel = %p, "
+        //     "user = %p",
+        //     p->pid, kernel_pagetable, p->k_pagetable, p->pagetable);
         pkvminithart(p->k_pagetable);
-        Dbg("Switch done to user pagetable %s", "!!!");
-        Dbg("Switching context from c %p to p %p", c->context, p->context);
+        // Dbg("Switch done to user pagetable %s", "!!!");
+        // Dbg("Switching context from c %p to p %p", c->context, p->context);
         show_context(&c->context);
         show_context(&p->context);
         swtch(&c->context, &p->context);
         kvminithart();
-        Dbg("Back to scheduler %p", scheduler);
+        // Dbg("Back to scheduler %p", scheduler);
 
         // Process is done running for now.
         // It should have changed its p->state before coming back.
