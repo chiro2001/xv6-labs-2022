@@ -1,7 +1,7 @@
+#include "debug.h"
 #include "defs.h"
 #include "elf.h"
 #include "fs.h"
-#include "debug.h"
 #include "kernel/common.h"
 #include "memlayout.h"
 #include "param.h"
@@ -18,7 +18,7 @@ extern char etext[];  // kernel.ld sets this to end of kernel code.
 extern char trampoline[];  // trampoline.S
 
 void pkvmmap(pagetable_t pagetable, uint64 va, uint64 pa, uint64 sz, int perm) {
-  if (mappages(pagetable, va, sz, pa, perm) != 0) panic("kvmmap");
+  if (mappages(pagetable, va, sz, pa, perm) != 0) panic("pkvmmap");
 }
 
 pagetable_t pkvminit() {
@@ -39,10 +39,12 @@ pagetable_t pkvminit() {
   pkvmmap(pagetable, PLIC, PLIC, 0x400000, PTE_R | PTE_W);
 
   // map kernel text executable and read-only.
-  pkvmmap(pagetable, KERNBASE, KERNBASE, (uint64)etext - KERNBASE, PTE_R | PTE_X);
+  pkvmmap(pagetable, KERNBASE, KERNBASE, (uint64)etext - KERNBASE,
+          PTE_R | PTE_X);
 
   // map kernel data and the physical RAM we'll make use of.
-  pkvmmap(pagetable, (uint64)etext, (uint64)etext, PHYSTOP - (uint64)etext, PTE_R | PTE_W);
+  pkvmmap(pagetable, (uint64)etext, (uint64)etext, PHYSTOP - (uint64)etext,
+          PTE_R | PTE_W);
 
   // map the trampoline for trap entry/exit to
   // the highest virtual address in the kernel.
@@ -113,13 +115,15 @@ pte_t *walk(pagetable_t pagetable, uint64 va, int alloc) {
   for (int level = 2; level > 0; level--) {
     pte_t *pte = &pagetable[PX(level, va)];
     if (!pte) {
-      Dbg("walk user pgtbl %p for pa %p", pagetable, va);
       Panic("walk user pgtbl %p for pa %p", pagetable, va);
     }
     if (*pte & PTE_V) {
       pagetable = (pagetable_t)PTE2PA(*pte);
     } else {
-      if (!alloc || (pagetable = (pde_t *)kalloc()) == 0) return 0;
+      if (!alloc || (pagetable = (pde_t *)kalloc()) == 0) {
+        Err("Cannot allocate new page! pgtbl=%p, va=%p", pagetable, va);
+        return 0;
+      }
       memset(pagetable, 0, PGSIZE);
       *pte = PA2PTE(pagetable) | PTE_V;
     }
@@ -182,7 +186,10 @@ int mappages(pagetable_t pagetable, uint64 va, uint64 size, uint64 pa,
   a = PGROUNDDOWN(va);
   last = PGROUNDDOWN(va + size - 1);
   for (;;) {
-    if ((pte = walk(pagetable, a, 1)) == 0) return -1;
+    if ((pte = walk(pagetable, a, 1)) == 0) {
+      Err("walking pgtbl=%p, va=%p, alloc err", pagetable, a);
+      return -1;
+    }
     if (*pte & PTE_V) {
       Panic("remap: pte=%p, *pte=%p, a=%p, last=%p", *pte, pte, a, last);
       panic("remap");
@@ -197,7 +204,7 @@ int mappages(pagetable_t pagetable, uint64 va, uint64 size, uint64 pa,
 
 // same as mappages, but ignore remap
 int pkmappages(pagetable_t pagetable, uint64 va, uint64 size, uint64 pa,
-             int perm) {
+               int perm) {
   uint64 a, last;
   pte_t *pte;
 
@@ -331,6 +338,23 @@ void freewalk(pagetable_t pagetable) {
   kfree((void *)pagetable);
 }
 
+void pkfreewalk(pagetable_t pagetable) {
+  // there are 2^9 = 512 PTEs in a page table.
+  for (int i = 0; i < 512; i++) {
+    pte_t pte = pagetable[i];
+    if ((pte & PTE_V) && (pte & (PTE_R | PTE_W | PTE_X)) == 0) {
+      // this PTE points to a lower-level page table.
+      uint64 child = PTE2PA(pte);
+      pkfreewalk((pagetable_t)child);
+      pagetable[i] = 0;
+    } else if (pte & PTE_V) {
+      Panic("pkfreewalk: leaf, pgtbl=%p, pte=%p", pagetable, pte);
+      panic("pkfreewalk: leaf");
+    }
+  }
+  // kfree((void *)pagetable);
+}
+
 uint64 pkvmdealloc(pagetable_t pagetable, uint64 oldsz, uint64 newsz) {
   if (newsz >= oldsz) return oldsz;
 
@@ -347,6 +371,15 @@ uint64 pkvmdealloc(pagetable_t pagetable, uint64 oldsz, uint64 newsz) {
 void uvmfree(pagetable_t pagetable, uint64 sz) {
   if (sz > 0) uvmunmap(pagetable, 0, PGROUNDUP(sz) / PGSIZE, 1);
   freewalk(pagetable);
+}
+
+// Free user memory pages in k_pagetable,
+// but do not free memory pages really
+void pkvmfree(pagetable_t pagetable, uint64 sz) {
+  if (sz > 0) pkvmunmap(pagetable, 0, PGROUNDUP(sz) / PGSIZE);
+  // freewalk(pagetable);
+  pkfreewalk(pagetable);
+  // kfree((void *)pagetable);
 }
 
 // Given a parent process's page table, copy
@@ -444,7 +477,8 @@ int copyout(pagetable_t pagetable, uint64 dstva, char *src, uint64 len) {
 // Copy len bytes to dst from virtual address srcva in a given page table.
 // Return 0 on success, -1 on error.
 int copyin(pagetable_t pagetable, char *dst, uint64 srcva, uint64 len) {
-  // Log("copyin(table=%p, dst=%p, src=%p, len=%p)", pagetable, dst, srcva, len);
+  // Log("copyin(table=%p, dst=%p, src=%p, len=%p)", pagetable, dst, srcva,
+  // len);
 #ifndef COPYIN_USE_NEW
   uint64 n, va0, pa0;
 
@@ -471,7 +505,8 @@ int copyin(pagetable_t pagetable, char *dst, uint64 srcva, uint64 len) {
 // until a '\0', or max.
 // Return 0 on success, -1 on error.
 int copyinstr(pagetable_t pagetable, char *dst, uint64 srcva, uint64 max) {
-  // Log("copyinstr(table=%p, dst=%p, src=%p, max=%p)", pagetable, dst, srcva, max);
+  // Log("copyinstr(table=%p, dst=%p, src=%p, max=%p)", pagetable, dst, srcva,
+  // max);
 #ifndef COPYIN_USE_NEW
   uint64 n, va0, pa0;
   int got_null = 0;

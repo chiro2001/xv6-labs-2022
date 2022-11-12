@@ -22,7 +22,7 @@ struct run {
 struct {
   struct spinlock lock;
   struct run *freelist;
-} kmem[NCPU];
+} kmem[KMEM_CPUS];
 
 void freerange(void *pa_start, void *pa_end);
 
@@ -87,6 +87,7 @@ void *kalloc(void) {
   r = kmem[cid].freelist;
   if (r) kmem[cid].freelist = r->next;
   release(&kmem[cid].lock);
+#if (KMEM_CPUS > 1)
   if (!r) {
     // "steal" part of other CPU's freelist
     // lock in order
@@ -100,8 +101,13 @@ void *kalloc(void) {
     }
     for (int i = KMEM_CPUS - 1; i >= 0; i--) release(&kmem[i].lock);
   }
-
+#endif
   if (r) memset((char *)r, 5, PGSIZE);  // fill with junk
+  acquire(&kmem[cid].lock);
+  if (!r) {
+    Err("kalloc failed! cid=%d, freelist=%p", cid, kmem[cid].freelist);
+  }
+  release(&kmem[cid].lock);
   return (void *)r;
 }
 

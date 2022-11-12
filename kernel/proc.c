@@ -154,7 +154,10 @@ static void freeproc(struct proc *p) {
   if (p->trapframe) kfree((void *)p->trapframe);
   p->trapframe = 0;
   if (p->pagetable) proc_freepagetable(p->pagetable, p->sz);
-  if (p->k_pagetable) proc_free_kernel_pagetable(p->k_pagetable);
+  if (p->k_pagetable) {
+    proc_free_kernel_pagetable(p->k_pagetable, p->sz);
+    // kfree(p->k_pagetable);
+  }
   p->pagetable = 0;
   p->k_pagetable = 0;
   p->sz = 0;
@@ -207,16 +210,19 @@ void proc_freepagetable(pagetable_t pagetable, uint64 sz) {
 
 // Free a process's kernel page table, but need not free the physical memory it
 // refers to
-void proc_free_kernel_pagetable(pagetable_t pagetable) {
+void proc_free_kernel_pagetable(pagetable_t pagetable, uint64 sz) {
   for (int i = 0; i < 512; i++) {
     pte_t pte = pagetable[i];
     if ((pte & PTE_V) && (pte & (PTE_W | PTE_R | PTE_X))) {
       uint64 child = PTE2PA(pte);
-      proc_free_kernel_pagetable((pagetable_t)child);
+      proc_free_kernel_pagetable((pagetable_t)child, sz);
       pagetable[i] = 0;
     }
   }
   kfree(pagetable);
+  // pkvmunmap(pagetable, TRAMPOLINE, 1);
+  // pkvmunmap(pagetable, TRAPFRAME, 1);
+  // pkvmfree(pagetable, sz);
 }
 
 // a user program that calls exec("/init")
@@ -515,7 +521,9 @@ void scheduler(void) {
         c->proc = p;
         // switch to user pagetable
         IFDEF(DEBUG, extern pagetable_t kernel_pagetable);
-        Dbg("[pid %d] Switching to user pagetable. global = %p, kernel = %p, user = %p", p->pid, kernel_pagetable, p->k_pagetable, p->pagetable);
+        Dbg("[pid %d] Switching to user pagetable. global = %p, kernel = %p, "
+            "user = %p",
+            p->pid, kernel_pagetable, p->k_pagetable, p->pagetable);
         pkvminithart(p->k_pagetable);
         Dbg("Switch done to user pagetable %s", "!!!");
         Dbg("Switching context from c %p to p %p", c->context, p->context);
