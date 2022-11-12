@@ -482,7 +482,7 @@ struct cmd *parseexec(char **ps, char *es) {
   while (!peek(ps, es, "|)&;")) {
     if ((tok = gettoken(ps, es, &q, &eq)) == 0) break;
     if (tok != 'a') panic("syntax");
-    Log("add argv: %s, eargv: %s", q, eq);
+    // Log("add argv: %s, eargv: %s", q, eq);
     cmd->argv[argc] = q;
     cmd->eargv[argc] = eq;
     argc++;

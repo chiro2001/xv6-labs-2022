@@ -105,7 +105,7 @@ void *kalloc(void) {
   if (r) memset((char *)r, 5, PGSIZE);  // fill with junk
   acquire(&kmem[cid].lock);
   if (!r) {
-    Err("kalloc failed! cid=%d, freelist=%p", cid, kmem[cid].freelist);
+    Dbg("kalloc failed! cid=%d, freelist=%p", cid, kmem[cid].freelist);
   }
   release(&kmem[cid].lock);
   return (void *)r;

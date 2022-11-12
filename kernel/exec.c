@@ -55,7 +55,7 @@ int exec(char *path, char **argv) {
     end_op();
     return -1;
   }
-  Log("[%d] exec got node %p", p->pid, ip);
+  // Log("[%d] exec got node %p", p->pid, ip);
   ilock(ip);
 
   // Check ELF header

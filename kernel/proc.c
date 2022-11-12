@@ -155,8 +155,8 @@ static void freeproc(struct proc *p) {
   p->trapframe = 0;
   if (p->pagetable) proc_freepagetable(p->pagetable, p->sz);
   if (p->k_pagetable) {
-    proc_free_kernel_pagetable(p->k_pagetable, p->sz);
-    // kfree(p->k_pagetable);
+    proc_free_kernel_pagetable(p->k_pagetable);
+    p->k_pagetable = 0;
   }
   p->pagetable = 0;
   p->k_pagetable = 0;
@@ -168,6 +168,11 @@ static void freeproc(struct proc *p) {
   p->killed = 0;
   p->xstate = 0;
   p->state = UNUSED;
+  // p->kstack = 0;
+  // if (p->kstack_pa) {
+  //   kfree((void *)p->kstack_pa);
+  //   p->kstack_pa = 0;
+  // }
 }
 
 // Create a user page table for a given process,
@@ -210,19 +215,22 @@ void proc_freepagetable(pagetable_t pagetable, uint64 sz) {
 
 // Free a process's kernel page table, but need not free the physical memory it
 // refers to
-void proc_free_kernel_pagetable(pagetable_t pagetable, uint64 sz) {
+void proc_free_kernel_pagetable(pagetable_t pagetable) {
   for (int i = 0; i < 512; i++) {
-    pte_t pte = pagetable[i];
-    if ((pte & PTE_V) && (pte & (PTE_W | PTE_R | PTE_X))) {
-      uint64 child = PTE2PA(pte);
-      proc_free_kernel_pagetable((pagetable_t)child, sz);
-      pagetable[i] = 0;
+    pte_t pte0 = pagetable[i];
+    if (pte0 & PTE_V) {
+      pagetable_t pgtbl1 = (pagetable_t)(PTE2PA(pte0));
+      for (int j = 0; j < 512; j++) {
+        pte_t pte1 = pgtbl1[j];
+        if (pte1 & PTE_V) {
+          pagetable_t pgtbl2 = (pagetable_t)(PTE2PA(pte1));
+          kfree((void *)pgtbl2);
+        }
+      }
+      kfree((void *)pgtbl1);
     }
   }
-  kfree(pagetable);
-  // pkvmunmap(pagetable, TRAMPOLINE, 1);
-  // pkvmunmap(pagetable, TRAPFRAME, 1);
-  // pkvmfree(pagetable, sz);
+  kfree((void *)pagetable);
 }
 
 // a user program that calls exec("/init")

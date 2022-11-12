@@ -373,15 +373,6 @@ void uvmfree(pagetable_t pagetable, uint64 sz) {
   freewalk(pagetable);
 }
 
-// Free user memory pages in k_pagetable,
-// but do not free memory pages really
-void pkvmfree(pagetable_t pagetable, uint64 sz) {
-  if (sz > 0) pkvmunmap(pagetable, 0, PGROUNDUP(sz) / PGSIZE);
-  // freewalk(pagetable);
-  pkfreewalk(pagetable);
-  // kfree((void *)pagetable);
-}
-
 // Given a parent process's page table, copy
 // its memory into a child's page table.
 // Copies both the page table and the
