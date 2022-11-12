@@ -455,6 +455,7 @@ int writei(struct inode *ip, int user_src, uint64 src, uint off, uint n) {
     if (either_copyin(bp->data + (off % BSIZE), user_src, src, m) == -1) {
       brelse(bp);
       n = -1;
+      Dbg("either_copyin err! user_src=%d, src=%p", user_src, src);
       break;
     }
     log_write(bp);
