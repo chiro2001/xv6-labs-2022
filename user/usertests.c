@@ -2212,11 +2212,13 @@ void bigargtest(char *s) {
     static char *args[MAXARG];
     int i;
     for (i = 0; i < MAXARG - 1; i++)
+      // args[i] =
+      //     "bigargs test: failed\n                                              "
+      //     "                                                                    "
+      //     "                                                                    "
+      //     "                 ";
       args[i] =
-          "bigargs test: failed\n                                              "
-          "                                                                    "
-          "                                                                    "
-          "                 ";
+          "bigargs test: failed\n";
     args[MAXARG - 1] = 0;
     exec("echo", args);
     fd = open("bigarg-ok", O_CREATE);
