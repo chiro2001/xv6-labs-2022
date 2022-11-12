@@ -92,6 +92,7 @@ int exec(char *path, char **argv) {
   sz = PGROUNDUP(sz);
   uint64 sz1;
   if ((sz1 = uvmalloc(pagetable, sz, sz + 2 * PGSIZE)) == 0) goto bad;
+  if (sz1 > PLIC) goto bad;
   sz = sz1;
   uvmclear(pagetable, sz - 2 * PGSIZE);
   sp = sz;
@@ -128,6 +129,8 @@ int exec(char *path, char **argv) {
   for (last = s = path; *s; s++)
     if (*s == '/') last = s + 1;
   safestrcpy(p->name, last, sizeof(p->name));
+
+  // if (pkvmcopy(p->pagetable, p->k_pagetable, 0, sz) < 0) goto bad;
 
   // Commit to the user image.
   oldpagetable = p->pagetable;

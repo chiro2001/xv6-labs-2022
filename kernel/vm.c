@@ -1,3 +1,5 @@
+#include "common.h"
+#include "proc.h"
 #include "debug.h"
 #include "defs.h"
 #include "elf.h"
@@ -21,7 +23,7 @@ void pkvmmap(pagetable_t pagetable, uint64 va, uint64 pa, uint64 sz, int perm) {
   if (mappages(pagetable, va, sz, pa, perm) != 0) panic("pkvmmap");
 }
 
-pagetable_t pkvminit() {
+pagetable_t vmcreate() {
   pagetable_t pagetable = (pagetable_t)kalloc();
   if (pagetable == 0) return 0;
   memset(pagetable, 0, PGSIZE);
@@ -53,31 +55,15 @@ pagetable_t pkvminit() {
   return pagetable;
 }
 
+pagetable_t pkvminit() { return vmcreate(); }
+
 /*
  * create a direct-map page table for the kernel.
  */
 void kvminit() {
-  kernel_pagetable = (pagetable_t)kalloc();
-  memset(kernel_pagetable, 0, PGSIZE);
+  kernel_pagetable = vmcreate();
 
-  // uart registers
-  kvmmap(UART0, UART0, PGSIZE, PTE_R | PTE_W);
-
-  // virtio mmio disk interface
-  kvmmap(VIRTIO0, VIRTIO0, PGSIZE, PTE_R | PTE_W);
-
-  // PLIC
-  kvmmap(PLIC, PLIC, 0x400000, PTE_R | PTE_W);
-
-  // map kernel text executable and read-only.
-  kvmmap(KERNBASE, KERNBASE, (uint64)etext - KERNBASE, PTE_R | PTE_X);
-
-  // map kernel data and the physical RAM we'll make use of.
-  kvmmap((uint64)etext, (uint64)etext, PHYSTOP - (uint64)etext, PTE_R | PTE_W);
-
-  // map the trampoline for trap entry/exit to
-  // the highest virtual address in the kernel.
-  kvmmap(TRAMPOLINE, (uint64)trampoline, PGSIZE, PTE_R | PTE_X);
+  kvmmap(CLINT, CLINT, 0x10000, PTE_R | PTE_W);
 }
 
 // Switch h/w page table register to the kernel's page table,
@@ -164,7 +150,8 @@ uint64 kvmpa(uint64 va) {
   pte_t *pte;
   uint64 pa;
 
-  pte = walk(kernel_pagetable, va, 0);
+  // pte = walk(kernel_pagetable, va, 0);
+  pte = walk(myproc()->k_pagetable, va, 0);
   if (pte == 0) panic("kvmpa");
   if ((*pte & PTE_V) == 0) panic("kvmpa");
   pa = PTE2PA(*pte);
@@ -404,52 +391,36 @@ err:
   return -1;
 }
 
-// Copy process's user pagetable to new kernel pagetable, will only copy flags
+// Copy process's user pagetable to new kernel pagetable
 int pkvmcopy(pagetable_t old, pagetable_t new, uint64 sz_old, uint64 sz_new) {
   pte_t *pte;
-  uint64 pa, i;
-  uint flags;
+  // uint64 pa, i;
+  // uint flags;
 
   // Dbg("pkvmcopy(%p, %p, %x, %x)", old, new, sz_old, sz_new);
 
-  for (i = sz_old; i < sz_new; i += PGSIZE) {
+  for (uint64 i = sz_old; i < sz_new; i += PGSIZE) {
     if ((pte = walk(old, i, 0)) == 0) panic("pkvmcopy: pte should exist");
-    // pte_t *pte_to;
-    // if ((pte_to = walk(new, i, 1)) == 0) panic("u2kvmcopy: walk fail");
-    if ((*pte & PTE_V) == 0) {
-      Panic("pkvmcopy: page not present! *pte = %p", *pte);
-    }
-    pa = PTE2PA(*pte);
+    pte_t *pte_to;
+    if ((pte_to = walk(new, i, 1)) == 0) panic("u2kvmcopy: walk fail");
+    // if ((*pte & PTE_V) == 0) {
+    //   Panic("pkvmcopy: page not present! *pte = %p", *pte);
+    // }
+    // pa = PTE2PA(*pte);
     // PTE_U will prevent kernel visiting user's memory, remove PTE_U flag
-    flags = PTE_FLAGS(*pte) & (~PTE_U);
-    if (pkmappages(new, i, PGSIZE, pa, flags) != 0) {
-      goto err;
-    }
+    // flags = PTE_FLAGS(*pte) & (~PTE_U);
+    // if (pkmappages(new, i, PGSIZE, pa, flags) != 0) {
+    //   goto err;
+    // }
     // *pte_to = PA2PTE(pa) | flags;
+    *pte_to = (*pte) & (~PTE_U);
   }
   return 0;
 
   // err..?
-err:
-  pkvmunmap(new, 0, i / PGSIZE);
-  return -1;
-
-  // pte_t *pte_from, *pte_to;
-  // uint64 pa, i;
-  // uint flags;
-
-  // if (sz_new < sz_old) return 0;
-
-  // sz_old = PGROUNDUP(sz_old);
-  // for (i = sz_old; i < sz_new; i += PGSIZE) {
-  //   if ((pte_from = walk(old, i, 0)) == 0)
-  //     panic("u2kvmcopy: u_pte should exist");
-  //   if ((pte_to = walk(new, i, 1)) == 0) panic("u2kvmcopy: walk fail");
-  //   pa = PTE2PA(*pte_from);
-  //   flags = PTE_FLAGS(*pte_from) & (~PTE_U);
-  //   *pte_to = PA2PTE(pa) | flags;
-  // }
-  // return 0;
+  // err:
+  //   pkvmunmap(new, 0, i / PGSIZE);
+  //   return -1;
 }
 
 // mark a PTE invalid for user access.

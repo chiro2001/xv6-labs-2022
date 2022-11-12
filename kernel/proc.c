@@ -36,13 +36,13 @@ void procinit(void) {
     // Allocate a page for the process's kernel stack.
     // Map it high in memory, followed by an invalid
     // guard page.
-    char *pa = kalloc();
-    if (pa == 0) panic("kalloc");
-    uint64 va = KSTACK((int)(p - proc));
-    if (p->pid != 0) Log("procinit: mapping kernel stack, pid: %d", p->pid);
-    kvmmap(va, (uint64)pa, PGSIZE, PTE_R | PTE_W);
-    p->kstack = va;
-    p->kstack_pa = (uint64)(pa);
+    // char *pa = kalloc();
+    // if (pa == 0) panic("kalloc");
+    // uint64 va = KSTACK((int)(p - proc));
+    // if (p->pid != 0) Log("procinit: mapping kernel stack, pid: %d", p->pid);
+    // kvmmap(va, (uint64)pa, PGSIZE, PTE_R | PTE_W);
+    // p->kstack = va;
+    // p->kstack_pa = (uint64)(pa);
   }
   kvminithart();
 }
@@ -125,13 +125,21 @@ found:
     release(&p->lock);
     return 0;
   }
+
+  char *pa = kalloc();
+  if (pa == 0) panic("kalloc");
+  uint64 va = KSTACK((int)(p - proc));
+  if (p->pid != 0) Log("procinit: mapping kernel stack, pid: %d", p->pid);
+  // kvmmap(va, (uint64)pa, PGSIZE, PTE_R | PTE_W);
+  p->kstack = va;
+  p->kstack_pa = (uint64)(pa);
   // // Map KSTACK to user's kernel pagetabel
   // uint64 kernel_va = KSTACK((int)(p - proc));
   uint64 kernel_va = p->kstack;
   // uint64 kernel_pa = kvmpa(kernel_va);
   uint64 kernel_pa = p->kstack_pa;
-  Assert(kvmpa(kernel_va) == kernel_pa,
-         "assert kernel_pa can be calulated in %s", "allowproc");
+  // Assert(kvmpa(kernel_va) == kernel_pa,
+  //        "assert kernel_pa can be calulated in %s", "allowproc");
   Dbg("Mapped user's kernel pagetable stack va:pa = %p:%p", kernel_va,
       kernel_pa);
   pkvmmap(p->k_pagetable, kernel_va, kernel_pa, PGSIZE, PTE_R | PTE_W);
@@ -157,6 +165,7 @@ static void freeproc(struct proc *p) {
   if (p->pagetable) proc_freepagetable(p->pagetable, p->sz);
   if (p->k_pagetable) {
     proc_free_kernel_pagetable(p->k_pagetable);
+    // pkvmfree(p->k_pagetable, p->kstack, 1);
     p->k_pagetable = 0;
   }
   p->pagetable = 0;
@@ -214,9 +223,22 @@ void proc_freepagetable(pagetable_t pagetable, uint64 sz) {
   uvmfree(pagetable, sz);
 }
 
+void pkvmfree(pagetable_t pagetable, uint64 va, uint n) {
+  if (n > 0) pkvmunmap(pagetable, va, n);
+  void freewalk(pagetable_t pagetable);
+  freewalk(pagetable);
+}
+
 // Free a process's kernel page table, but need not free the physical memory it
 // refers to
 void proc_free_kernel_pagetable(pagetable_t pagetable) {
+  // pkvmunmap(pagetable, UART0, 1);
+  // pkvmunmap(pagetable, VIRTIO0, 1);
+  // pkvmunmap(pagetable, CLINT, 0x10000 / PGSIZE);
+  // pkvmunmap(pagetable, PLIC, 0x4000000 / PGSIZE);
+  // extern char etext[];
+  // pkvmunmap(pagetable, KERNBASE, ((uint64)etext - KERNBASE) / PGSIZE);
+  // pkvmunmap(pagetable, TRAMPOLINE, 1);
   for (int i = 0; i < 512; i++) {
     pte_t pte0 = pagetable[i];
     if (pte0 & PTE_V) {
@@ -232,6 +254,7 @@ void proc_free_kernel_pagetable(pagetable_t pagetable) {
     }
   }
   kfree((void *)pagetable);
+  // pkvmfree(pagetable, )
 }
 
 // a user program that calls exec("/init")
@@ -290,15 +313,16 @@ int growproc(int n) {
     if ((sz = uvmalloc(p->pagetable, sz, sz + n)) == 0) {
       return -1;
     }
-    // new size == sz here
-    if (pkvmcopy(p->pagetable, p->k_pagetable, p->sz, sz) < 0) {
-      return -1;
-    }
+    // new size == sz here, p->sz is old size
+    // if (pkvmcopy(p->pagetable, p->k_pagetable, p->sz, sz) < 0) {
+    //   return -1;
+    // }
   } else if (n < 0) {
     sz = uvmdealloc(p->pagetable, sz, sz + n);
-    pkvmdealloc(p->k_pagetable, p->sz, sz);
+    // pkvmdealloc(p->k_pagetable, p->sz, sz);
   }
   p->sz = sz;
+  // pkvmcopy(p->pagetable, p->k_pagetable, sz - n, sz);
   return 0;
 }
 

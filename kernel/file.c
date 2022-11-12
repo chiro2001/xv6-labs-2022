@@ -132,6 +132,7 @@ int filewrite(struct file *f, uint64 addr, int n) {
     int max = ((MAXOPBLOCKS - 1 - 1 - 2) / 2) * BSIZE;
     int i = 0;
     while (i < n) {
+      Dbg("writing, i=%d", i);
       int n1 = n - i;
       if (n1 > max) n1 = max;
 
@@ -141,7 +142,10 @@ int filewrite(struct file *f, uint64 addr, int n) {
       iunlock(f->ip);
       end_op();
 
-      if (r < 0) break;
+      if (r < 0) {
+        Dbg("r < 0, r = %d", r);
+        break;
+      }
       if (r != n1) panic("short filewrite");
       i += r;
     }

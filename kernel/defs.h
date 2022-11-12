@@ -202,6 +202,7 @@ int             copyin(pagetable_t, char *, uint64, uint64);
 int             copyinstr(pagetable_t, char *, uint64, uint64);
 int             test_pagetable();
 void            vmprint(pagetable_t);
+void            pkvmfree(pagetable_t pagetable, uint64 va, uint n);
 
 // vmcopyin.c
 int copyin_new(pagetable_t, char *, uint64, uint64);
