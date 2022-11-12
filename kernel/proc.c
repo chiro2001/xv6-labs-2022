@@ -283,7 +283,7 @@ int growproc(int n) {
   sz = p->sz;
   if (n > 0) {
     if (sz + n >= PLIC) {
-      Err("grouproc: cannot grow up to PLIC! new sz: %p, PLIC: %p", sz + n,
+      Dbg("grouproc: cannot grow up to PLIC! new sz: %p, PLIC: %p", sz + n,
           PLIC);
       return -1;
     }

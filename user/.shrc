@@ -1,4 +1,4 @@
-echo xv6 OS starts!
-echo LAB=pgtbl
-kvmtest
-usertests
+# echo xv6 OS starts!
+# echo LAB=pgtbl
+# kvmtest
+usertests sbrkarg
