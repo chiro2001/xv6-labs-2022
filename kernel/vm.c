@@ -121,7 +121,7 @@ pte_t *walk(pagetable_t pagetable, uint64 va, int alloc) {
       pagetable = (pagetable_t)PTE2PA(*pte);
     } else {
       if (!alloc || (pagetable = (pde_t *)kalloc()) == 0) {
-        Err("Cannot allocate new page! pgtbl=%p, va=%p", pagetable, va);
+        Dbg("Cannot allocate new page! pgtbl=%p, va=%p", pagetable, va);
         return 0;
       }
       memset(pagetable, 0, PGSIZE);
@@ -187,7 +187,7 @@ int mappages(pagetable_t pagetable, uint64 va, uint64 size, uint64 pa,
   last = PGROUNDDOWN(va + size - 1);
   for (;;) {
     if ((pte = walk(pagetable, a, 1)) == 0) {
-      Err("walking pgtbl=%p, va=%p, alloc err", pagetable, a);
+      Dbg("walking pgtbl=%p, va=%p, alloc err", pagetable, a);
       return -1;
     }
     if (*pte & PTE_V) {

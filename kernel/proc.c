@@ -378,7 +378,7 @@ void reparent(struct proc *p) {
 void exit(int status) {
   struct proc *p = myproc();
 
-  Log("[%d] exit(%d)", p->pid, status);
+  Dbg("[%d] exit(%d)", p->pid, status);
 
   if (p == initproc) panic("init exiting");
 

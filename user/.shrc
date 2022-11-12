@@ -1,5 +1,5 @@
 echo xv6 OS starts!
 echo LAB=pgtbl
 kvmtest
-usertests mem
-usertests reparent2
+# usertests
+usertests bigargtest
