@@ -22,10 +22,12 @@ int exec(char *path, char **argv) {
   pagetable_t pagetable = 0, oldpagetable;
   struct proc *p = myproc();
 
-  char argv_buf[512] = "NULL";
+  // char argv_buf[512] = "NULL";
+  char argv_buf[0x400] = "NULL";
   char *argv_p = argv_buf;
 
   for (char **c = argv; *c; c++) {
+    Dbg("[%d] len *c: %s", c - argv, *c);
     int len = strlen(*c);
     memmove(argv_p, *c, len + 1);
     argv_p += len;
@@ -97,6 +99,7 @@ int exec(char *path, char **argv) {
   // Push argument strings, prepare rest of stack in ustack.
   for (argc = 0; argv[argc]; argc++) {
     if (argc >= MAXARG) goto bad;
+    // Dbg("len argv[argc]: %s", argv[argc]);
     sp -= strlen(argv[argc]) + 1;
     sp -= sp % 16;  // riscv sp must be 16-byte aligned
     if (sp < stackbase) goto bad;
@@ -146,6 +149,7 @@ bad:
     iunlockput(ip);
     end_op();
   }
+  Err("exec bad! ret=%d", -1);
   return -1;
 }
 

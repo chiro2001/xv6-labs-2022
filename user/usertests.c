@@ -2212,16 +2212,16 @@ void bigargtest(char *s) {
   if (pid == 0) {
     static char *args[MAXARG];
     int i;
-    args[0] = "echo";
-    for (i = 1; i < MAXARG - 1; i++)
-      // args[i] =
-      // "bigargs test: failed\n                   "
-      // "                                         "
-      // "                                         "
-      // "                 ";
-      args[i] = "bigargs test: failed";
+    // args[0] = "echo";
+    for (i = 0; i < MAXARG - 1; i++)
+      args[i] =
+          "bigargs test: failed\n                                              "
+          "                                                                    "
+          "                                                                    "
+          "                 ";
+      // args[i] = "0";
     args[MAXARG - 1] = 0;
-    // args[1] = 0;
+    // args[31] = 0;
     Dbg("will exec!");
     exec("echo", args);
     Dbg("exec done!");
