@@ -32,17 +32,8 @@ void procinit(void) {
   initlock(&pid_lock, "nextpid");
   for (p = proc; p < &proc[NPROC]; p++) {
     initlock(&p->lock, "proc");
-
-    // Allocate a page for the process's kernel stack.
-    // Map it high in memory, followed by an invalid
-    // guard page.
-    // char *pa = kalloc();
-    // if (pa == 0) panic("kalloc");
-    // uint64 va = KSTACK((int)(p - proc));
-    // if (p->pid != 0) Log("procinit: mapping kernel stack, pid: %d", p->pid);
-    // kvmmap(va, (uint64)pa, PGSIZE, PTE_R | PTE_W);
-    // p->kstack = va;
-    // p->kstack_pa = (uint64)(pa);
+    // Remove kernel stack mapping to kernel pagetable,
+    // do it when create proc
   }
   kvminithart();
 }
@@ -126,26 +117,13 @@ found:
     return 0;
   }
 
-  char *pa = kalloc();
-  if (pa == 0) panic("kalloc");
-  uint64 va = KSTACK((int)(p - proc));
+  p->kstack_pa = (uint64)kalloc();
+  if (p->kstack_pa == 0) panic("kalloc");
+  p->kstack = KSTACK((int)(p - proc));
   if (p->pid != 0) Dbg("procinit: mapping kernel stack, pid: %d", p->pid);
-  // kvmmap(va, (uint64)pa, PGSIZE, PTE_R | PTE_W);
-  p->kstack = va;
-  p->kstack_pa = (uint64)(pa);
-  // // Map KSTACK to user's kernel pagetabel
-  // uint64 kernel_va = KSTACK((int)(p - proc));
-  uint64 kernel_va = p->kstack;
-  // uint64 kernel_pa = kvmpa(kernel_va);
-  uint64 kernel_pa = p->kstack_pa;
-  // Assert(kvmpa(kernel_va) == kernel_pa,
-  //        "assert kernel_pa can be calulated in %s", "allowproc");
-  Dbg("Mapped user's kernel pagetable stack va:pa = %p:%p", kernel_va,
-      kernel_pa);
-  pkvmmap(p->k_pagetable, kernel_va, kernel_pa, PGSIZE, PTE_R | PTE_W);
-
-  // Sync even when create
-  // pkvmcopy(p->pagetable, p->k_pagetable, 0, PGSIZE);
+  Dbg("Mapped user's kernel pagetable stack va:pa = %p:%p", p->kstack,
+      p->kstack_pa);
+  pkvmmap(p->k_pagetable, p->kstack, p->kstack_pa, PGSIZE, PTE_R | PTE_W);
 
   // Set up new context to start executing at forkret,
   // which returns to user space.
@@ -165,7 +143,6 @@ static void freeproc(struct proc *p) {
   if (p->pagetable) proc_freepagetable(p->pagetable, p->sz);
   if (p->k_pagetable) {
     proc_free_kernel_pagetable(p->k_pagetable);
-    // pkvmfree(p->k_pagetable, p->kstack, 1);
     p->k_pagetable = 0;
   }
   if (p->kstack_pa) {
@@ -182,11 +159,6 @@ static void freeproc(struct proc *p) {
   p->killed = 0;
   p->xstate = 0;
   p->state = UNUSED;
-  // p->kstack = 0;
-  // if (p->kstack_pa) {
-  //   kfree((void *)p->kstack_pa);
-  //   p->kstack_pa = 0;
-  // }
 }
 
 // Create a user page table for a given process,
@@ -236,13 +208,6 @@ void pkvmfree(pagetable_t pagetable, uint64 va, uint n) {
 // Free a process's kernel page table, but need not free the physical memory it
 // refers to
 void proc_free_kernel_pagetable(pagetable_t pagetable) {
-  // pkvmunmap(pagetable, UART0, 1);
-  // pkvmunmap(pagetable, VIRTIO0, 1);
-  // pkvmunmap(pagetable, CLINT, 0x10000 / PGSIZE);
-  // pkvmunmap(pagetable, PLIC, 0x4000000 / PGSIZE);
-  // extern char etext[];
-  // pkvmunmap(pagetable, KERNBASE, ((uint64)etext - KERNBASE) / PGSIZE);
-  // pkvmunmap(pagetable, TRAMPOLINE, 1);
   for (int i = 0; i < 512; i++) {
     pte_t pte0 = pagetable[i];
     if (pte0 & PTE_V) {
@@ -258,7 +223,6 @@ void proc_free_kernel_pagetable(pagetable_t pagetable) {
     }
   }
   kfree((void *)pagetable);
-  // pkvmfree(pagetable, )
 }
 
 // a user program that calls exec("/init")
@@ -563,20 +527,12 @@ void scheduler(void) {
         p->state = RUNNING;
         c->proc = p;
         // switch to user pagetable
-        // IFDEF(DEBUG, extern pagetable_t kernel_pagetable);
-        // Dbg("[pid %d] Switching to user pagetable. global = %p, kernel = %p,
-        // "
-        //     "user = %p",
-        //     p->pid, kernel_pagetable, p->k_pagetable, p->pagetable);
         pkvminithart(p->k_pagetable);
-        // Dbg("Switch done to user pagetable %s", "!!!");
-        // Dbg("Switching context from c %p to p %p", c->context, p->context);
         show_context(&c->context);
         show_context(&p->context);
         swtch(&c->context, &p->context);
         kvminithart();
-        // Dbg("Back to scheduler %p", scheduler);
-
+        
         // Process is done running for now.
         // It should have changed its p->state before coming back.
         c->proc = 0;
