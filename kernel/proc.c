@@ -168,6 +168,10 @@ static void freeproc(struct proc *p) {
     // pkvmfree(p->k_pagetable, p->kstack, 1);
     p->k_pagetable = 0;
   }
+  if (p->kstack_pa) {
+    kfree((void *)p->kstack_pa);
+    p->kstack_pa = 0;
+  }
   p->pagetable = 0;
   p->k_pagetable = 0;
   p->sz = 0;
