@@ -2,4 +2,6 @@
 # echo LAB=pgtbl
 # kvmtest
 usertests sbrkarg
+# usertests sbrktest
+# usertests
 # usertests bigargtest

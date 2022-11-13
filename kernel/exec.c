@@ -132,6 +132,8 @@ int exec(char *path, char **argv) {
 
   // if (pkvmcopy(p->pagetable, p->k_pagetable, 0, sz) < 0) goto bad;
 
+  pkvmdealloc(p->k_pagetable, p->sz, sz);
+
   // Commit to the user image.
   oldpagetable = p->pagetable;
   p->pagetable = pagetable;

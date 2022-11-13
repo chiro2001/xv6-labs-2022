@@ -129,7 +129,7 @@ found:
   char *pa = kalloc();
   if (pa == 0) panic("kalloc");
   uint64 va = KSTACK((int)(p - proc));
-  if (p->pid != 0) Log("procinit: mapping kernel stack, pid: %d", p->pid);
+  if (p->pid != 0) Dbg("procinit: mapping kernel stack, pid: %d", p->pid);
   // kvmmap(va, (uint64)pa, PGSIZE, PTE_R | PTE_W);
   p->kstack = va;
   p->kstack_pa = (uint64)(pa);

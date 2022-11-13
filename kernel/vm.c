@@ -1,5 +1,4 @@
 #include "common.h"
-#include "proc.h"
 #include "debug.h"
 #include "defs.h"
 #include "elf.h"
@@ -7,6 +6,7 @@
 #include "kernel/common.h"
 #include "memlayout.h"
 #include "param.h"
+#include "proc.h"
 #include "riscv.h"
 #include "types.h"
 
@@ -345,6 +345,8 @@ void pkfreewalk(pagetable_t pagetable) {
 uint64 pkvmdealloc(pagetable_t pagetable, uint64 oldsz, uint64 newsz) {
   if (newsz >= oldsz) return oldsz;
 
+  // Err("pkvmdealloc(pgtbl=%p, oldsz=%x, newsz=%x)", pagetable, oldsz, newsz);
+
   if (PGROUNDUP(newsz) < PGROUNDUP(oldsz)) {
     int npages = (PGROUNDUP(oldsz) - PGROUNDUP(newsz)) / PGSIZE;
     pkvmunmap(pagetable, PGROUNDUP(newsz), npages);
@@ -397,7 +399,13 @@ int pkvmcopy(pagetable_t old, pagetable_t new, uint64 sz_old, uint64 sz_new) {
   // uint64 pa, i;
   // uint flags;
 
-  // Dbg("pkvmcopy(%p, %p, %x, %x)", old, new, sz_old, sz_new);
+  // Err("pkvmcopy(%p, %p, %x, %x)", old, new, sz_old, sz_new);
+
+  if (sz_new > PLIC) {
+    Err("Overflow to PLIC! sz_new=%p", sz_new);
+    return -1;
+  }
+  sz_old = PGROUNDDOWN(sz_old);
 
   for (uint64 i = sz_old; i < sz_new; i += PGSIZE) {
     if ((pte = walk(old, i, 0)) == 0) panic("pkvmcopy: pte should exist");
@@ -463,6 +471,9 @@ int copyin(pagetable_t pagetable, char *dst, uint64 srcva, uint64 len) {
 #if !defined(COPYIN_USE_NEW) || 0
   uint64 n, va0, pa0;
 
+  // va0 = PGROUNDDOWN(srcva);
+  // Assert((uint64)dst == (walkaddr(pagetable, va0) + (srcva - va0)), "Should have same mappnig! src : dst = %p : %p", srcva, dst);
+
   while (len > 0) {
     va0 = PGROUNDDOWN(srcva);
     pa0 = walkaddr(pagetable, va0);
@@ -477,6 +488,7 @@ int copyin(pagetable_t pagetable, char *dst, uint64 srcva, uint64 len) {
   }
   return 0;
 #else
+  // Assert((uint64)dst == walkaddr(pagetable, PGROUNDDOWN(srcva)), "Should have same mappnig! src : dst = %p : %p", srcva, dst);
   return copyin_new(pagetable, dst, srcva, len);
 #endif
 }

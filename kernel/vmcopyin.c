@@ -29,7 +29,24 @@ int statscopyin(char *buf, int sz) {
 int copyin_new(pagetable_t pagetable, char *dst, uint64 srcva, uint64 len) {
   struct proc *p = myproc();
 
-  if (srcva >= p->sz || srcva + len >= p->sz || srcva + len < srcva) return -1;
+  if (srcva >= p->sz || srcva + len >= p->sz || srcva + len < srcva) {
+    Err("copyin_new: invalid args! dst=%p, srcva=%p, len=%d, p->sz=%d", dst, srcva, len, p->sz);
+    if (srcva >= p->sz) {
+      Err("srcva >= p->sz");
+    }
+    if (srcva + len >= p->sz) {
+      Err("srcva + len >= p->sz!, srcva(%d) + len(%d) >= p->sz(%d)", srcva, len, p->sz);
+    }
+    if (srcva + len < srcva) {
+      Err("srcva + len < srcva");
+    }
+    vmprint(pagetable);
+    return -1;
+  }
+  // uint64 va0, pa0;
+  // va0 = PGROUNDDOWN(srcva);
+  // pa0 = walkaddr(pagetable, va0);
+  // printf("dst=%p, pa0=%p\n", dst, pa0);
   memmove((void *)dst, (void *)srcva, len);
   stats.ncopyin++;  // XXX lock
   return 0;
