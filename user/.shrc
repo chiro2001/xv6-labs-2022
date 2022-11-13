@@ -1,7 +1,7 @@
-# echo xv6 OS starts!
-# echo LAB=pgtbl
-# kvmtest
+echo xv6 OS starts!
+echo LAB=pgtbl
+kvmtest
 # usertests sbrkarg
 # usertests sbrktest
-usertests
+# usertests
 # usertests bigargtest

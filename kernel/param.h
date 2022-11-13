@@ -31,8 +31,4 @@
 #define COPYIN_USE_NEW 1
 #endif
 
-#ifndef EXECUTE_SHRC
-// #define EXECUTE_SHRC 1
-#endif
-
 #endif  // _INC_PARAM_H

@@ -35,8 +35,6 @@ uint64 sys_sbrk(void) {
   if (growproc(n) < 0) return -1;
   if (n > 0) {
     struct proc *p = myproc();
-    // pkvmdealloc(p->k_pagetable, addr, 0);
-    // pkvmcopy(p->pagetable, p->k_pagetable, 0, addr + n);
     pkvmcopy(p->pagetable, p->k_pagetable, addr, addr + n);
   }
   return addr;

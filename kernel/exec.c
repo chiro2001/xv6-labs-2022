@@ -22,20 +22,6 @@ int exec(char *path, char **argv) {
   pagetable_t pagetable = 0, oldpagetable;
   struct proc *p = myproc();
 
-  // // char argv_buf[512] = "NULL";
-  // char argv_buf[0x400] = "NULL";
-  // char *argv_p = argv_buf;
-
-  // for (char **c = argv; *c; c++) {
-  //   Dbg("[%d] len *c: %s", c - argv, *c);
-  //   int len = strlen(*c);
-  //   memmove(argv_p, *c, len + 1);
-  //   argv_p += len;
-  //   *(argv_p++) = ';';
-  //   *argv_p = '\0';
-  // }
-
-  // Log("[%d] exec(%s), args: %s", p->pid, path, argv_buf);
   Dbg("[%d] exec(%s), args[0]: %s", p->pid, path, argv ? 0 : argv[0]);
 
   char *path_p = path;
@@ -59,7 +45,6 @@ int exec(char *path, char **argv) {
     Dbg("get path %s err!", path);
     return -1;
   }
-  // Log("[%d] exec got node %p", p->pid, ip);
   ilock(ip);
 
   // Check ELF header
@@ -98,8 +83,6 @@ int exec(char *path, char **argv) {
   sp = sz;
   stackbase = sp - PGSIZE;
 
-  // if (pkvmcopy(p->pagetable, p->k_pagetable, 0, sz) < 0) goto bad;
-
   // Push argument strings, prepare rest of stack in ustack.
   for (argc = 0; argv[argc]; argc++) {
     if (argc >= MAXARG) goto bad;
@@ -129,8 +112,6 @@ int exec(char *path, char **argv) {
   for (last = s = path; *s; s++)
     if (*s == '/') last = s + 1;
   safestrcpy(p->name, last, sizeof(p->name));
-
-  // if (pkvmcopy(p->pagetable, p->k_pagetable, 0, sz) < 0) goto bad;
 
   pkvmdealloc(p->k_pagetable, p->sz, sz);
 

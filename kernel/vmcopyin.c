@@ -34,13 +34,8 @@ int copyin_new(pagetable_t pagetable, char *dst, uint64 srcva, uint64 len) {
     if (srcva + len >= p->sz) {
       Dbg("srcva + len >= p->sz!, srcva(%d) + len(%d) >= p->sz(%d)", srcva, len, p->sz);
     }
-    // vmprint(pagetable);
     return -1;
   }
-  // uint64 va0, pa0;
-  // va0 = PGROUNDDOWN(srcva);
-  // pa0 = walkaddr(pagetable, va0);
-  // printf("dst=%p, pa0=%p\n", dst, pa0);
   memmove((void *)dst, (void *)srcva, len);
   stats.ncopyin++;  // XXX lock
   return 0;

@@ -395,12 +395,6 @@ err:
 
 // Copy process's user pagetable to new kernel pagetable
 int pkvmcopy(pagetable_t old, pagetable_t new, uint64 sz_old, uint64 sz_new) {
-  pte_t *pte;
-  // uint64 pa, i;
-  // uint flags;
-
-  // Err("pkvmcopy(%p, %p, %x, %x)", old, new, sz_old, sz_new);
-
   if (sz_new > PLIC) {
     Err("Overflow to PLIC! sz_new=%p", sz_new);
     return -1;
@@ -408,27 +402,12 @@ int pkvmcopy(pagetable_t old, pagetable_t new, uint64 sz_old, uint64 sz_new) {
   sz_old = PGROUNDDOWN(sz_old);
 
   for (uint64 i = sz_old; i < sz_new; i += PGSIZE) {
-    if ((pte = walk(old, i, 0)) == 0) panic("pkvmcopy: pte should exist");
-    pte_t *pte_to;
+    pte_t *pte_from, *pte_to;
+    if ((pte_from = walk(old, i, 0)) == 0) panic("pkvmcopy: pte should exist");
     if ((pte_to = walk(new, i, 1)) == 0) panic("u2kvmcopy: walk fail");
-    // if ((*pte & PTE_V) == 0) {
-    //   Panic("pkvmcopy: page not present! *pte = %p", *pte);
-    // }
-    // pa = PTE2PA(*pte);
-    // PTE_U will prevent kernel visiting user's memory, remove PTE_U flag
-    // flags = PTE_FLAGS(*pte) & (~PTE_U);
-    // if (pkmappages(new, i, PGSIZE, pa, flags) != 0) {
-    //   goto err;
-    // }
-    // *pte_to = PA2PTE(pa) | flags;
-    *pte_to = (*pte) & (~PTE_U);
+    *pte_to = (*pte_from) & (~PTE_U);
   }
   return 0;
-
-  // err..?
-  // err:
-  //   pkvmunmap(new, 0, i / PGSIZE);
-  //   return -1;
 }
 
 // mark a PTE invalid for user access.
