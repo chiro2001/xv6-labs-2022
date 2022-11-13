@@ -7,11 +7,11 @@
 #endif
 
 #ifndef CONFIG_PRINT_LOG
-#define CONFIG_PRINT_LOG 1
+// #define CONFIG_PRINT_LOG 1
 #endif
 
 #ifndef CONFIG_PRINT_ERR_LOG
-#define CONFIG_PRINT_ERR_LOG 1
+// #define CONFIG_PRINT_ERR_LOG 1
 #endif
 
 // #ifndef DEBUG_SYS_TRACE
