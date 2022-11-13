@@ -30,17 +30,11 @@ int copyin_new(pagetable_t pagetable, char *dst, uint64 srcva, uint64 len) {
   struct proc *p = myproc();
 
   if (srcva >= p->sz || srcva + len >= p->sz || srcva + len < srcva) {
-    Err("copyin_new: invalid args! dst=%p, srcva=%p, len=%d, p->sz=%d", dst, srcva, len, p->sz);
-    if (srcva >= p->sz) {
-      Err("srcva >= p->sz");
-    }
+    Dbg("copyin_new: invalid args! dst=%p, srcva=%p, len=%d, p->sz=%d", dst, srcva, len, p->sz);
     if (srcva + len >= p->sz) {
-      Err("srcva + len >= p->sz!, srcva(%d) + len(%d) >= p->sz(%d)", srcva, len, p->sz);
+      Dbg("srcva + len >= p->sz!, srcva(%d) + len(%d) >= p->sz(%d)", srcva, len, p->sz);
     }
-    if (srcva + len < srcva) {
-      Err("srcva + len < srcva");
-    }
-    vmprint(pagetable);
+    // vmprint(pagetable);
     return -1;
   }
   // uint64 va0, pa0;

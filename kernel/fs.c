@@ -441,11 +441,11 @@ int writei(struct inode *ip, int user_src, uint64 src, uint off, uint n) {
   struct buf *bp;
 
   if (off > ip->size || off + n < off) {
-    Err("off and n are not in range! off = %x, n = %d", off, n);
+    Dbg("off and n are not in range! off = %x, n = %d", off, n);
     return -1;
   }
   if (off + n > MAXFILE * BSIZE) {
-    Err("up to max file size! off + n = %x", off + n);
+    Dbg("up to max file size! off + n = %x", off + n);
     return -1;
   }
 

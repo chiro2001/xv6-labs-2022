@@ -36,7 +36,7 @@ int exec(char *path, char **argv) {
   // }
 
   // Log("[%d] exec(%s), args: %s", p->pid, path, argv_buf);
-  Log("[%d] exec(%s), args[0]: %s", p->pid, path, argv ? 0 : argv[0]);
+  Dbg("[%d] exec(%s), args[0]: %s", p->pid, path, argv ? 0 : argv[0]);
 
   char *path_p = path;
   int has_space = 0;
