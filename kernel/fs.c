@@ -424,7 +424,7 @@ int readi(struct inode *ip, int user_dst, uint64 dst, uint off, uint n) {
     m = min(n - tot, BSIZE - off % BSIZE);
     if (either_copyout(user_dst, dst, bp->data + (off % BSIZE), m) == -1) {
       brelse(bp);
-      tot = -1;
+      // tot = -1;
       break;
     }
     brelse(bp);
