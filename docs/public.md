@@ -10,3 +10,4 @@
 >    git checkout 02e3ec08039bd06e5963444ac7d4a6a3140aa9ea
 >    git am ../patches/*.patch 
 >    ```
+> 3. 本项目代码开源于 [https://github.com/chiro2001/xv6-labs-2022](https://github.com/chiro2001/xv6-labs-2022)
